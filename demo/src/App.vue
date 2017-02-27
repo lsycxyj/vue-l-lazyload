@@ -2,17 +2,17 @@
 </style>
 <template>
 	<div>
-		<lazy-target ref="lazyTarget" class="lazy-target" v-if="show">
+		<lazy-ref ref="lazyRef" class="lazy-ref" v-if="show">
 			<div>
-				<img v-lazy="{ref:'lazyTarget', src:img}">
+				<img v-lazy="{ref:'lazyRef', src:img}">
 			</div>
-		</lazy-target>
+		</lazy-ref>
 		<button @click="changeImg">Change img</button>
 		<button @click="changeShow">Change show</button>
 	</div>
 </template>
 <script>
-import { LazyTarget, Lazy } from '../../src/index';
+import { LazyRef, Lazy } from '../../src/index';
 
 let i = 0;
 
@@ -32,7 +32,7 @@ export default {
 		}
 	},
 	components: {
-		'lazy-target': LazyTarget
+		'lazy-target': LazyRef
 	},
 	directives: {
 		'lazy': Lazy
