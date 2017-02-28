@@ -14,8 +14,12 @@ function isStr(o) {
 	return type(o) == 'string';
 }
 
+function trim(o) {
+	return o == null ? '' : String.prototype.trim.call(o)
+}
+
 function each(elements, callback) {
-	for (let i = 0, len = elements.length, element; i < len; i++) {
+	for (var i = 0, len = elements.length, element; i < len; i++) {
 		element = elements[i];
 		callback.call(element, element, i);
 	}
@@ -70,10 +74,6 @@ function offset(element) {
 	};
 }
 
-function width(element) {
-	return offset(element).width;
-}
-
 export const $ = {
 	on,
 	off,
@@ -85,6 +85,5 @@ export const $ = {
 	removeClass,
 	attr,
 	each,
-	offset,
-	width,
+	offset
 };

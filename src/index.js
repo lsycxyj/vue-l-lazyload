@@ -1,14 +1,24 @@
 import Vue from 'vue';
-import { $ } from './util';
+import {$} from './util';
 
 const EV_SCROLL = 'scroll',
 
-	CLASS_LOADING = 'lazy-loading';
+	CLASS_LOADING = 'lazy-loading',
+	CLASS_ERR = 'lazy-err',
+	CLASS_LOADED = 'lazy-loaded',
+
+	STAT_NOT_LOAD = 0,
+	STAT_LOADING = 1,
+	STAT_LOADED = 2,
+
+	win = window;
 
 const on = $.on,
 	off = $.off,
+	trim = $.trim,
 	addClass = $.addClass,
 	removeClass = $.removeClass,
+	offset = $.offset,
 	isArr = $.isArr;
 
 var loaderID = 0;
@@ -27,13 +37,18 @@ class LazyLoader {
 		if (!isRoot) {
 			opts = {
 				// Own element
-				el: window,
+				el: win,
 				// Events to be bound
 				events: [EV_SCROLL],
 				// Class name of loading
 				classLoading: CLASS_LOADING,
+				// Class name of loaded
+				classLoaded: CLASS_LOADED,
+				// Class name of load error
+				classErr: CLASS_ERR,
 				// Retry amount, 0 for no retry, -1 for infinite retry.
 				retry: 0,
+				preloadRatio: 1,
 				...opts
 			};
 		}
@@ -56,49 +71,104 @@ class LazyLoader {
 		me.parent = parent;
 		me.id = ++loaderID;
 		me.el = el;
-		me.loaded = false;
+		me.stat = STAT_NOT_LOAD;
 		me._children = [];
 		me._queues = {};
+		me.retry = retry;
+		// For update lock
+		me.cancelRetry = false;
 		me.events = isArr(events) ? events : [events];
 		me.opts = opts;
 	}
 
 	check(evName) {
 		const me = this,
-			queues = me._queues,
-			children = me._children;
+			parent = me.parent;
 
-		const queue = evName ? queues[evName] : children;
+		if (!parent && me.inView()) {
 
-		if (queue) {
-			for (var i = 0, len = queue.length; i < len; i++) {
-				queue[i].check();
+			loadHandler(me);
+
+			const queues = me._queues,
+				children = me._children,
+				queue = evName ? queues[evName] : children;
+
+			if (queue) {
+				for (var i = 0, len = queue.length; i < len; i++) {
+					var item = queue[i];
+					item.check();
+				}
+			}
+		}
+	}
+
+	inView() {
+		const me = this,
+			parent = me.parent;
+
+		var result = true;
+
+		if (parent) {
+			const
+				parentEl = parent.el,
+				preloadRatio = me.opts.preloadRatio,
+				isWin = parentEl === win,
+				parentElOffset = isWin ? {
+						left: 0,
+						top: 0,
+						width: win.innerWidth,
+						height: win.innerHeight
+					} : offset(parentEl),
+				elOffset = offset(me.el),
+				parentElLeft = parentElOffset.left,
+				parentElRight = parentElLeft + parentElOffset.width * preloadRatio,
+				parentElTop = parentElOffset.top,
+				parentElBottom = parentElTop + parentElOffset.height * preloadRatio,
+				elLeft = elOffset.left,
+				elRight = elLeft + elOffset.width * preloadRatio,
+				elTop = elOffset.top,
+				elBottom = elTop + elOffset.height * preloadRatio;
+
+			// Collision detection
+			// TODO
+			if (elLeft) {
 			}
 		}
 
-		//TODO call load
+		return result;
 	}
 
-	add(lazyLoader) {
+	addChild(lazyLoader) {
+		const me = this,
+			events = lazyLoader.events;
 
+		me._children.push(lazyLoader);
+
+		for (var i = 0, len = events.length; i < len; i++) {
+			var event = events[i],
+				queue = me._queues[event];
+			if (!queue) {
+				queue = me._queues[events] = [];
+			}
+			queue.push(lazyLoader);
+		}
 	}
 
-	up(lazyLoader) {
+	update(opts) {
+		const me = this,
+			oOpts = me.opts;
 
+		oOpts.src = opts.src;
+
+		// reset
+		me.stat = STAT_NOT_LOAD;
+		me.retry = oOpts.retry;
 	}
 
-	rm(lazyLoader) {
+	rmChild(lazyLoader) {
 		const me = this,
 			queues = me._queues,
 			children = me._children;
-	}
-
-	act() {
-
-	}
-
-	deact() {
-
 	}
 
 	destroy() {
@@ -106,22 +176,26 @@ class LazyLoader {
 			parent = me.parent;
 
 		if (parent) {
-			parent.rm(me);
+			parent.rmChild(me);
 		}
 	}
 }
 
 function loadHandler(lazyLoader) {
-	const opts = lazyLoader.opts,
-		{
+	if (lazyLoader.stat < STAT_LOADED) {
+		const opts = lazyLoader.opts;
+		var {
 			src
 		} = opts;
 
-	if (!src) {
-		lazyLoader.loaded = true;
-	}
-	else {
-		const el = lazyLoader.el;
+		src = trim(src);
+
+		if (!src) {
+			lazyLoader.stat = STAT_LOADED;
+		}
+		else {
+			const el = lazyLoader.el;
+		}
 	}
 }
 
