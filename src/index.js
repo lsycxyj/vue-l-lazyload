@@ -75,29 +75,23 @@ class LazyLoader {
 		me._children = [];
 		me._queues = {};
 		me.retry = retry;
-		// For update lock
-		me.cancelRetry = false;
 		me.events = isArr(events) ? events : [events];
 		me.opts = opts;
 	}
 
 	check(evName) {
-		const me = this,
-			parent = me.parent;
+		const me = this;
 
-		if (!parent && me.inView()) {
+		me.stat < STAT_LOADED && me.inView() && loadHandler(me);
 
-			loadHandler(me);
+		const queues = me._queues,
+			children = me._children,
+			queue = evName ? queues[evName] : children;
 
-			const queues = me._queues,
-				children = me._children,
-				queue = evName ? queues[evName] : children;
-
-			if (queue) {
-				for (var i = 0, len = queue.length; i < len; i++) {
-					var item = queue[i];
-					item.check();
-				}
+		if (queue) {
+			for (var i = 0, len = queue.length; i < len; i++) {
+				var item = queue[i];
+				item.check();
 			}
 		}
 	}
@@ -181,21 +175,33 @@ class LazyLoader {
 	}
 }
 
+class ReqIMG {
+	constructor(imgEl, src, onLoad, onErr){
+		const me = this;
+
+		me.canceled = false;
+		me.el = imgEl;
+
+	}
+
+	cancel() {
+		this.canceled = true;
+	}
+}
+
 function loadHandler(lazyLoader) {
-	if (lazyLoader.stat < STAT_LOADED) {
-		const opts = lazyLoader.opts;
-		var {
-			src
-		} = opts;
+	const opts = lazyLoader.opts;
+	var {
+		src
+	} = opts;
 
-		src = trim(src);
+	src = trim(src);
 
-		if (!src) {
-			lazyLoader.stat = STAT_LOADED;
-		}
-		else {
-			const el = lazyLoader.el;
-		}
+	if (!src) {
+		lazyLoader.stat = STAT_LOADED;
+	}
+	else {
+		const el = lazyLoader.el;
 	}
 }
 
