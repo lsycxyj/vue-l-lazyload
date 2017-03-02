@@ -25,12 +25,12 @@ function each(elements, callback) {
 	}
 }
 
-function on(element, ev, callback) {
+function on(element, ev, callback, opts) {
 	if (isStr(ev)) {
-		element.addEventListener(ev, callback);
+		element.addEventListener(ev, callback, opts);
 	}
 	else if (isArr(ev)) {
-		each(ev, e => on(element, e, callback));
+		each(ev, e => on(element, e, callback, opts));
 	}
 }
 
@@ -41,19 +41,6 @@ function off(element, ev, callback) {
 	else if (isArr(ev)) {
 		each(ev, e => off(element, e, callback));
 	}
-}
-
-function one(element, ev, callback) {
-	function handler(...args) {
-		callback.apply(this, args);
-		off(element, ev, handler);
-	}
-
-	on(element, ev, handler);
-}
-
-function attr(element, name) {
-	return element.getAttribute(name);
 }
 
 function addClass(element, className) {
@@ -77,13 +64,12 @@ function offset(element) {
 export const $ = {
 	on,
 	off,
-	one,
+	trim,
 	type,
 	isArr,
 	isStr,
 	addClass,
 	removeClass,
-	attr,
 	each,
 	offset
 };

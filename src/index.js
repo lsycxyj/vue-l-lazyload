@@ -11,7 +11,8 @@ const EV_SCROLL = 'scroll',
 	STAT_LOADING = 1,
 	STAT_LOADED = 2,
 
-	win = window;
+	win = window,
+	Object = win.Object;
 
 const on = $.on,
 	off = $.off,
@@ -20,6 +21,17 @@ const on = $.on,
 	removeClass = $.removeClass,
 	offset = $.offset,
 	isArr = $.isArr;
+
+var supportsPassive = false;
+try {
+	var opts = Object.defineProperty({}, 'passive', {
+		get: function () {
+			supportsPassive = true;
+		}
+	});
+	window.addEventListener("test", null, opts);
+} catch (e) {
+}
 
 var loaderID = 0;
 
@@ -74,6 +86,8 @@ class LazyLoader {
 		me.stat = STAT_NOT_LOAD;
 		me._children = [];
 		me._queues = {};
+		// save for remove
+		me._cbs = {};
 		me.retry = retry;
 		me.events = isArr(events) ? events : [events];
 		me.opts = opts;
@@ -84,14 +98,17 @@ class LazyLoader {
 
 		me.stat < STAT_LOADED && me.inView() && loadHandler(me);
 
-		const queues = me._queues,
-			children = me._children,
-			queue = evName ? queues[evName] : children;
+		const children = me._children;
 
-		if (queue) {
-			for (var i = 0, len = queue.length; i < len; i++) {
-				var item = queue[i];
-				item.check();
+		if (children.length) {
+			const queues = me._queues,
+				queue = evName ? queues[evName] : children;
+
+			if (queue) {
+				for (var i = 0, len = queue.length; i < len; i++) {
+					var item = queue[i];
+					item.check();
+				}
 			}
 		}
 	}
@@ -100,7 +117,7 @@ class LazyLoader {
 		const me = this,
 			parent = me.parent;
 
-		var result = true;
+		var result = false;
 
 		if (parent) {
 			const
@@ -115,17 +132,20 @@ class LazyLoader {
 					} : offset(parentEl),
 				elOffset = offset(me.el),
 				parentElLeft = parentElOffset.left,
-				parentElRight = parentElLeft + parentElOffset.width * preloadRatio,
 				parentElTop = parentElOffset.top,
-				parentElBottom = parentElTop + parentElOffset.height * preloadRatio,
+				parentElWidth = parentElOffset.width * preloadRatio,
+				parentElHeight = parentElOffset.height * preloadRatio,
 				elLeft = elOffset.left,
-				elRight = elLeft + elOffset.width * preloadRatio,
 				elTop = elOffset.top,
-				elBottom = elTop + elOffset.height * preloadRatio;
+				elWidth = elOffset.width * preloadRatio,
+				elHeight = elOffset.height * preloadRatio;
 
 			// Collision detection
-			// TODO
-			if (elLeft) {
+			if (elLeft > parentElLeft - elLeft &&
+				elLeft < parentElLeft + parentElWidth + elWidth &&
+				elTop > parentElTop - elHeight &&
+				elTop < parentElTop + parentElHeight + elHeight) {
+				result = true;
 			}
 		}
 
@@ -134,7 +154,8 @@ class LazyLoader {
 
 	addChild(lazyLoader) {
 		const me = this,
-			events = lazyLoader.events;
+			events = lazyLoader.events,
+			el = me.el;
 
 		me._children.push(lazyLoader);
 
@@ -142,7 +163,22 @@ class LazyLoader {
 			var event = events[i],
 				queue = me._queues[event];
 			if (!queue) {
-				queue = me._queues[events] = [];
+				queue = me._queues[event] = [];
+
+				(function (queue) {
+					var cbs = me._cbs,
+						cb = cbs[event];
+
+					if (!cb) {
+						cbs[event] = throttle(function () {
+							for (var j = 0, jLen = queue.length; j < jLen; j++) {
+								queue[j].check();
+							}
+						});
+					}
+
+					on(el, event, cb, supportsPassive ? {passive: true} : 0);
+				})(queue);
 			}
 			queue.push(lazyLoader);
 		}
@@ -162,7 +198,34 @@ class LazyLoader {
 	rmChild(lazyLoader) {
 		const me = this,
 			queues = me._queues,
-			children = me._children;
+			children = me._children,
+			events = Object.keys(queues);
+
+		var index = search(children, lazyLoader);
+
+		if (index >= 0) {
+			children.splice(index, 1);
+		}
+
+		for (var i = 0, len = events.length; i < len; i++) {
+			var event = events[i],
+				queue = queues[event];
+
+			index = search(queue, lazyLoader);
+
+			if (index >= 0) {
+				queue.splice(index, 1);
+			}
+
+			if (queue.length == 0) {
+				const cbs = me._cbs,
+					cb = cbs[event];
+
+				cbs[event] = null;
+
+				off(event, cb);
+			}
+		}
 	}
 
 	destroy() {
@@ -175,13 +238,22 @@ class LazyLoader {
 	}
 }
 
-class ReqIMG {
-	constructor(imgEl, src, onLoad, onErr){
+class Req {
+	constructor({el, src, onLoad, onErr}) {
 		const me = this;
 
 		me.canceled = false;
-		me.el = imgEl;
+		me.stat = STAT_LOADING;
 
+		el.onload = () => {
+			!me.canceled && onLoad && onLoad();
+		};
+
+		el.onerror = () => {
+			!me.canceled && onErr && onErr();
+		};
+
+		el.src = src;
 	}
 
 	cancel() {
@@ -190,10 +262,13 @@ class ReqIMG {
 }
 
 function loadHandler(lazyLoader) {
-	const opts = lazyLoader.opts;
+	const opts = lazyLoader.opts,
+		oReq = lazyLoader.req;
 	var {
 		src
 	} = opts;
+
+	oReq && oReq.cancel();
 
 	src = trim(src);
 
@@ -201,13 +276,39 @@ function loadHandler(lazyLoader) {
 		lazyLoader.stat = STAT_LOADED;
 	}
 	else {
-		const el = lazyLoader.el;
+		lazyLoader.req = new Req({
+			el: lazyLoader.el,
+			src: src
+		});
 	}
 }
 
 // TODO to be optimized
 function search(arr, item) {
 	return arr.indexOf(item);
+}
+
+function throttle(fn, threshold, scope) {
+	threshold || (threshold = 250);
+	var last,
+		deferTimer;
+	return function () {
+		var context = scope || this;
+
+		var now = +new Date,
+			args = arguments;
+		if (last && now < last + threshold) {
+			// hold on to it
+			clearTimeout(deferTimer);
+			deferTimer = setTimeout(function () {
+				last = now;
+				fn.apply(context, args);
+			}, threshold);
+		} else {
+			last = now;
+			fn.apply(context, args);
+		}
+	};
 }
 
 const LazyRef = {
