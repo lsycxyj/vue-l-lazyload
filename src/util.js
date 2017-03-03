@@ -48,7 +48,20 @@ function addClass(element, className) {
 }
 
 function removeClass(element, className) {
-	element.classList.remove(className);
+	if (isStr(className)) {
+		element.classList.remove(className);
+	}
+	else if (isArr(className)) {
+		each(className, c => removeClass(element, c));
+	}
+}
+
+function attr(el, name, value) {
+	el.setAttribute(name, value);
+}
+
+function removeAttr(el, value) {
+	el.removeAttribute(value);
 }
 
 function offset(element) {
@@ -61,6 +74,35 @@ function offset(element) {
 	};
 }
 
+// TODO to be optimized
+function search(arr, item) {
+	return arr.indexOf(item);
+}
+
+function throttle(fn, threshold, scope) {
+	threshold || (threshold = 250);
+	var last,
+		deferTimer;
+	return function () {
+		var context = scope || this;
+
+		var now = +new Date,
+			args = arguments;
+		if (last && now < last + threshold) {
+			// hold on to it
+			clearTimeout(deferTimer);
+			deferTimer = setTimeout(function () {
+				last = now;
+				fn.apply(context, args);
+			}, threshold);
+		} else {
+			last = now;
+			fn.apply(context, args);
+		}
+	};
+}
+
+
 export const $ = {
 	on,
 	off,
@@ -70,6 +112,10 @@ export const $ = {
 	isStr,
 	addClass,
 	removeClass,
+	attr,
+	removeAttr,
 	each,
-	offset
+	offset,
+	search,
+	throttle,
 };
