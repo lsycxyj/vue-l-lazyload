@@ -65,7 +65,7 @@
 <template>
 	<div>
 		<div>
-			<lazy-ref ref="lazyRef" class="lazy-ref" :opts="{classTarget:'parent'}">
+			<lazy-ref ref="lazyRef" class="lazy-ref" :opts="{classTarget:'parent', retry:3}">
 				<div>
 					<img v-lazy="{ref:'lazyRef', src:img}">
 				</div>

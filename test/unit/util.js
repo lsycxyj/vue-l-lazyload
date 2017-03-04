@@ -1,6 +1,5 @@
 import Vue from 'vue';
 import $ from 'jquery';
-import simulant from 'simulant';
 
 function type(o) {
 	return typeof o;
@@ -49,42 +48,6 @@ function createVM(Compo, propsData = {}, mounted) {
 	return new VueExtended(nPropsData).$mount(mounted === false ? null : el)
 }
 
-function createVirtualPointer() {
-	return {
-		x: 0,
-		y: 0,
-		trigger(evtName) {
-			const x = this.x,
-				y = this.y;
-			// TODO: I haven't found a good way to simulate touch events
-			simulant.fire(document.elementFromPoint(x, y), evtName, {
-				clientX: x,
-				clientY: y,
-				pageX: x,
-				pageY: y,
-				touches: [
-					{
-						pageX: x,
-						pageY: y,
-					}
-				],
-				targetTouches: [{
-					pageX: x,
-					pageY: y,
-				}],
-			});
-			//$(document.elementFromPoint(x, y)).trigger($.Event(evtName, {
-			//	pageX: x,
-			//	pageY: y,
-			//	targetTouches: [{
-			//		pageX: x,
-			//		pageY: y,
-			//	}],
-			//}));
-		},
-	}
-}
-
 function cssTextToObject(txt) {
 	const result = {};
 	txt.split(';').forEach((term) => {
@@ -98,10 +61,22 @@ function cssTextToObject(txt) {
 	return result;
 }
 
+function genImgSrc() {
+	return 'img/lenna.png?_t=' + Math.floor(Math.random() * 100000) + '.' + Date.now();
+}
+
+function genImgList(len) {
+	const arr = [];
+	while (len--) {
+		arr.push(genImgSrc());
+	}
+	return arr;
+}
 export  {
 	destroyVM,
 	createAndReplaceElem,
 	createVM,
-	createVirtualPointer,
-	cssTextToObject
+	cssTextToObject,
+	genImgSrc,
+	genImgList,
 };

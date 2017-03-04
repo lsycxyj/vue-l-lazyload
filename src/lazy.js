@@ -1,6 +1,6 @@
 import { $ } from './util';
 
-/* global window */
+/* global window, Image */
 const EV_SCROLL = 'scroll',
 
 	CLASS_LOADING = 'lazy-loading',
@@ -9,6 +9,8 @@ const EV_SCROLL = 'scroll',
 
 	CLASS_TARGET_SELF = 'self',
 	CLASS_TARGET_PARENT = 'parent',
+
+	MODE_BG = 'bg',
 
 	STAT_NOT_LOAD = 0,
 	STAT_LOADING = 1,
@@ -24,6 +26,7 @@ const {
 	addClass,
 	removeClass,
 	attr,
+	css,
 	removeAttr,
 	offset,
 	isArr,
@@ -95,7 +98,10 @@ function loadHandler(lazyLoader) {
 		classLoading,
 		classErr,
 		classLoaded,
-	} = opts;
+	} = opts,
+		loadEl = el,
+		onLoad,
+		onErr;
 
 	const classes = [classLoading, classErr, classLoaded],
 		elTarget = classTarget == CLASS_TARGET_PARENT ? el.parentNode || el : el;
@@ -109,22 +115,39 @@ function loadHandler(lazyLoader) {
 
 	src = trim(src);
 
+	switch (lazyLoader.opts.mode) {
+	case MODE_BG:
+		css(el, 'background-image', 'none');
+		onLoad = () => {
+			css(el, 'background-image', `url(${src})`);
+		};
+		onErr = () => {
+			css(el, 'background-image', 'none');
+		};
+		loadEl = new Image();
+		break;
+	default:// empty
+	}
+
 	if (!src) {
 		lazyLoader.stat = STAT_LOADED;
 		switchClass(elTarget, classLoaded);
 	}
 	else {
 		lazyLoader.stat = STAT_LOADING;
+
 		lazyLoader.req = new Req({
-			el,
+			el: loadEl,
 			src,
 			retry,
 			onLoad: () => {
+				onLoad && onLoad();
 				lazyLoader.stat = STAT_LOADED;
 				switchClass(elTarget, classLoaded);
 				once && lazyLoader.destroy();
 			},
 			onErr: () => {
+				onErr && onErr();
 				lazyLoader.stat = STAT_LOADED;
 				switchClass(elTarget, classErr);
 				once && lazyLoader.destroy();

@@ -1,5 +1,14 @@
 /* global getComputedStyle window */
 const win = window,
+	cssNumber = {
+		'column-count': 1,
+		columns: 1,
+		'font-weight': 1,
+		'line-height': 1,
+		opacity: 1,
+		'z-index': 1,
+		zoom: 1,
+	},
 	round = Math.round;
 
 function type(o) {
@@ -105,6 +114,35 @@ function throttle(fn, threshold = 250, scope) {
 	};
 }
 
+function camelize(str) {
+	return str.replace(/-+(.)?/g, (match, chr) => (chr ? chr.toUpperCase() : ''));
+}
+
+function dasherize(str) {
+	return str.replace(/::/g, '/')
+		.replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+		.replace(/([a-z\d])([A-Z])/g, '$1_$2')
+		.replace(/_/g, '-')
+		.toLowerCase();
+}
+
+function maybeAddPx(name, value) {
+	return (type(value) == 'number' && !cssNumber[dasherize(name)]) ? `${value}px` : value;
+}
+
+function css(element, property, value) {
+	/* eslint consistent-return: 0 */
+	const elementSytle = element.style;
+	if (arguments.length < 3) {
+		return elementSytle[camelize(property)] || getComputedStyle(element, '').getPropertyValue(property);
+	}
+	else if (!value && value !== 0) {
+		elementSytle.removeProperty(dasherize(property));
+	}
+	else {
+		elementSytle[dasherize(property)] = maybeAddPx(property, value);
+	}
+}
 
 export const $ = {
 	on,
@@ -116,6 +154,7 @@ export const $ = {
 	addClass,
 	removeClass,
 	attr,
+	css,
 	removeAttr,
 	each,
 	offset,

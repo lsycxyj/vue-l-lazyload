@@ -48,6 +48,9 @@ const LazyRef = {
 			el,
 		});
 	},
+	destroyed() {
+		this.$lazy.destroy();
+	},
 	methods: {
 		check() {
 			this.$lazy.check();

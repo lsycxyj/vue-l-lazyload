@@ -1,53 +1,13 @@
 // TODO not all tested
 
 import $ from 'jquery';
-import {Carousel, CarouselItem} from '../../../src/index';
-import {cssTextToObject, createVM, destroyVM, createVirtualPointer} from '../util';
-
-const EV_CHANGED_INDEX = 'changed-index',
-	EV_RENDER_UPDATED = 'render-updated',
-	EV_PREV = 'prev',
-	EV_NEXT = 'next',
-	EV_TO = 'to',
-
-	EV_CLICK = 'click',
-	EV_TOUCHSTART = 'touchstart',
-	EV_TOUCHMOVE = 'touchmove',
-	EV_TOUCHEND = 'touchend',
-	EV_MOUSE_DOWN = 'mousedown',
-	EV_MOUSE_MOVE = 'mousemove',
-	EV_MOUSE_UP = 'mouseup',
-
-	TIME_LAG = 100;
+import { VueLLazyload } from '../../../src/index';
+import {cssTextToObject, createVM, destroyVM, genImgSrc, genImgList} from '../util';
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20 * 1000;
 
-describe('Suite: test Carousel.vue', () => {
-	const COMMON_SPEED_TIME = 300,
-		COMMON_LIST = [
-			{
-				url: 'url1'
-			},
-			{
-				url: 'url2'
-			},
-			{
-				url: 'url3'
-			}
-		],
-		COMMON_DATA = {
-			prevHTML: '&lt;',
-			nextHTML: '&gt;',
-			speed: COMMON_SPEED_TIME,
-			list: COMMON_LIST,
-			loop: false,
-			rewind: false,
-			mouseDrag: false,
-			auto: 0,
-			dots: true,
-			dotsStyle: '',
-		},
-		$body = $('body');
+describe('Suite: test vue-l-lazyload', () => {
+		const $body = $('body');
 	let vm;
 
 	$body.css({
@@ -55,9 +15,6 @@ describe('Suite: test Carousel.vue', () => {
 		margin: 0,
 	});
 
-	//beforeEach(() => {
-	//});
-	//
 	afterEach(() => {
 		destroyVM(vm);
 	});
@@ -67,20 +24,9 @@ describe('Suite: test Carousel.vue', () => {
 		vm = createVM(
 			`
 				<div>
-					<carousel ref="car" :watch-items="list" :prev-html="prevHTML" :next-html="nextHTML" :speed="speed" :loop="loop" :rewind="rewind" :mouseDrag="mouseDrag" :auto="auto" :dots="dots" :dots-style="dotsStyle">
-						<carousel-item v-for="(item, index) in list">
-							<p>CarouselItem{{index}}, URL is {{item.url}}</p>
-						</carousel-item>
-						<div slot="before">Insert node before</div>
-						<div slot="after">Insert node after</div>
-					</carousel>
 				</div>
 			`,
 			{
-				components: {
-					'carousel': Carousel,
-					'carousel-item': CarouselItem
-				},
 				...data,
 			});
 	}
