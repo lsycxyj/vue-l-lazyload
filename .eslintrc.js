@@ -12,6 +12,20 @@ module.exports = {
 		'no-shadow': 0,
 		'no-mixed-operators': 0,
 		'no-plusplus': 0,
+		'no-unused-expressions': ['error', {allowShortCircuit: true}],
+		'no-underscore-dangle': ['error',
+			{
+				allow: [
+					'_cbs',
+					'_children',
+					'_queues',
+					'_$lazy',
+					'_lazyBound'
+				]
+			}
+		],
+		'no-multi-assign': 0,
+		'no-param-reassign': 0,
 		'no-var': 0,
 		'linebreak-style': 0,
 		'no-mixed-spaces-and-tabs': ['error', 'smart-tabs'],

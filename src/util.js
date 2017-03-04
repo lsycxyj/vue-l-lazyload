@@ -15,11 +15,14 @@ function isStr(o) {
 }
 
 function trim(o) {
-	return o == null ? '' : String.prototype.trim.call(o)
+	return o == null ? '' : String.prototype.trim.call(o);
 }
 
 function each(elements, callback) {
-	for (var i = 0, len = elements.length, element; i < len; i++) {
+	var i,
+		len,
+		element;
+	for (i = 0, len = elements.length; i < len; i++) {
 		element = elements[i];
 		callback.call(element, element, i);
 	}
@@ -79,23 +82,23 @@ function search(arr, item) {
 	return arr.indexOf(item);
 }
 
-function throttle(fn, threshold, scope) {
-	threshold || (threshold = 250);
+function throttle(fn, threshold = 250, scope) {
 	var last,
 		deferTimer;
-	return function () {
+
+	return function (...args) {
 		var context = scope || this;
 
-		var now = +new Date,
-			args = arguments;
+		var now = +new Date();
 		if (last && now < last + threshold) {
 			// hold on to it
 			clearTimeout(deferTimer);
-			deferTimer = setTimeout(function () {
+			deferTimer = setTimeout(() => {
 				last = now;
 				fn.apply(context, args);
 			}, threshold);
-		} else {
+		}
+		else {
 			last = now;
 			fn.apply(context, args);
 		}

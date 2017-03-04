@@ -1,5 +1,16 @@
-import {$} from './util';
-import {LazyClass} from './lazy';
+/**
+ * @preserve
+ * vue-l-lazyload
+ *
+ * Copyright (c) 2017 - NOW Light Leung
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ */
+import { $ } from './util';
+import { LazyClass } from './lazy';
 
 var LazyLoader;
 
@@ -15,14 +26,14 @@ const LazyRef = {
 	props: {
 		tag: {
 			type: String,
-			default: 'div'
+			default: 'div',
 		},
 		opts: {
 			type: Object,
 			default() {
 				return {};
-			}
-		}
+			},
+		},
 	},
 	render(createElement) {
 		const me = this;
@@ -34,7 +45,7 @@ const LazyRef = {
 
 		vm.$lazy = new LazyLoader({
 			...vm.opts,
-			el: el
+			el,
 		});
 	},
 	methods: {
@@ -49,8 +60,8 @@ const LazyRef = {
 		},
 		rm(lazyLoader) {
 			this.$lazy.rmChild(lazyLoader);
-		}
-	}
+		},
+	},
 };
 
 const Lazy = {
@@ -59,7 +70,7 @@ const Lazy = {
 
 		if (isStr(opts)) {
 			opts = {
-				src: opts
+				src: opts,
 			};
 		}
 
@@ -71,9 +82,9 @@ const Lazy = {
 
 		// add to after $refs has references
 		vm.$nextTick(() => {
+			var ref;
 			// Prevent it's unbound before initialization
 			if (el._lazyBound) {
-				var ref;
 				if (refStr) {
 					ref = vm.$refs[refStr];
 					if (!ref) {
@@ -83,7 +94,7 @@ const Lazy = {
 
 				const mergedOpts = {
 						...opts,
-						el: el
+						el,
 					},
 					$lazy = ref && ref.$lazy;
 
@@ -108,12 +119,12 @@ const Lazy = {
 
 			if (loader) {
 				loader.update({
-					src: nSrc
+					src: nSrc,
 				});
 			}
 		}
 	},
-	unbind(el, binding, vnode){
+	unbind(el, binding, vnode) {
 		if (el._lazyBound) {
 			el._lazyBound = false;
 		}
@@ -125,7 +136,7 @@ const Lazy = {
 				el._$lazy = null;
 			}
 		});
-	}
+	},
 };
 
 const VueLLazyload = {
@@ -133,17 +144,17 @@ const VueLLazyload = {
 		LazyLoader = LazyClass(Vue);
 		Vue.$lazy = new LazyLoader({
 			...options,
-			isRoot: true
+			isRoot: true,
 		});
 
 		Vue.directive('lazy', Lazy);
 
 		Vue.component('lazy-ref', LazyRef);
-	}
+	},
 };
 
 export {
 	LazyRef,
 	Lazy,
-	VueLLazyload
+	VueLLazyload,
 };
