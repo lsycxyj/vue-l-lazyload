@@ -198,11 +198,11 @@ export function LazyClass(scope) {
 			else {
 				// inherit parent LazyLoader's options
 				const $rootLazy = scope.$lazy;
-				opts = Object.assign({
+				opts = {
 					parent: $rootLazy,
-				}, parent && parent.opts || $rootLazy.opts, {
+					...(parent && parent.opts || $rootLazy.opts),
 					...opts,
-				});
+				};
 			}
 
 			const {
@@ -259,8 +259,9 @@ export function LazyClass(scope) {
 					preloadRatio = me.opts.preloadRatio,
 					isWin = parentEl === win,
 					parentElOffset = isWin ? {
-						left: win.scrollX,
-						top: win.scrollY,
+						// IE, I'm looking at you
+						left: win.pageXOffset,
+						top: win.pageYOffset,
 						width: win.innerWidth,
 						height: win.innerHeight,
 					} : offset(parentEl),

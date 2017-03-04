@@ -55,16 +55,55 @@ function off(element, ev, callback) {
 	}
 }
 
-function addClass(element, className) {
-	element.classList.add(className);
+function className(element, value) {
+	var klass = element.className || '',
+		svg = klass && klass.baseVal !== undefined;
+
+	if (value === undefined) return svg ? klass.baseVal : klass;
+	if (svg) {
+		klass.baseVal = value;
+	}
+	else {
+		element.className = value;
+	}
 }
 
-function removeClass(element, className) {
-	if (isStr(className)) {
-		element.classList.remove(className);
+function addClass(element, classname) {
+	const classList = element.classList;
+	if (classList) {
+		classList.add(classname);
 	}
-	else if (isArr(className)) {
-		each(className, c => removeClass(element, c));
+	else {
+		const cls = className(element).split(' '),
+			map = {};
+		each(cls, (klass) => {
+			map[klass] = true;
+		});
+
+		if (!map[classname]) {
+			className(element, cls.join(' ') + classname);
+		}
+	}
+}
+
+function classRE(name) {
+	return new RegExp(`(^|\\s)${name}(\\s|$)`);
+}
+
+function removeClass(element, classname) {
+	if (isStr(classname)) {
+		const classList = element.classList;
+		if (classList) {
+			classList.remove(classname);
+		}
+		// IE, I'm looking at you again
+		else {
+			const cls = className(element);
+			className(element, trim(cls.replace(classRE(classname), ' ')));
+		}
+	}
+	else if (isArr(classname)) {
+		each(classname, c => removeClass(element, c));
 	}
 }
 
