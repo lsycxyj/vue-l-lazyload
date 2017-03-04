@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import { $ } from './util';
+import {$} from './util';
 
 const EV_SCROLL = 'scroll',
 
@@ -44,7 +43,7 @@ try {
 }
 
 var loaderID = 0;
-function LazyClass(scope) {
+export function LazyClass(scope) {
 	return class LazyLoader {
 		constructor(opts) {
 			const me = this,
@@ -83,8 +82,10 @@ function LazyClass(scope) {
 			}
 			else {
 				// inherit parent LazyLoader's options
-				opts = Object.create(parent && parent.opts, {
-					parent: scope.$lazy,
+				const $rootLazy = scope.$lazy;
+				opts = Object.assign({
+					parent: $rootLazy
+				}, parent && parent.opts || $rootLazy.opts, {
 					...opts
 				});
 			}
@@ -141,8 +142,8 @@ function LazyClass(scope) {
 					preloadRatio = me.opts.preloadRatio,
 					isWin = parentEl === win,
 					parentElOffset = isWin ? {
-							left: 0,
-							top: 0,
+							left: win.scrollX,
+							top: win.scrollY,
 							width: win.innerWidth,
 							height: win.innerHeight
 						} : offset(parentEl),
@@ -153,14 +154,14 @@ function LazyClass(scope) {
 					parentElHeight = parentElOffset.height * preloadRatio,
 					elLeft = elOffset.left,
 					elTop = elOffset.top,
-					elWidth = elOffset.width * preloadRatio,
-					elHeight = elOffset.height * preloadRatio;
+					elWidth = elOffset.width,
+					elHeight = elOffset.height;
 
 				// Collision detection
-				if (elLeft > parentElLeft - elLeft &&
-					elLeft < parentElLeft + parentElWidth + elWidth &&
-					elTop > parentElTop - elHeight &&
-					elTop < parentElTop + parentElHeight + elHeight) {
+				if (elLeft < parentElLeft + parentElWidth &&
+					elLeft + elWidth > parentElLeft &&
+					elTop < parentElTop + parentElHeight &&
+					elTop + elHeight > parentElTop) {
 					result = true;
 				}
 			}
@@ -186,7 +187,7 @@ function LazyClass(scope) {
 							cb = cbs[event];
 
 						if (!cb) {
-							cbs[event] = throttle(function () {
+							cb = cbs[event] = throttle(function () {
 								for (var j = 0, jLen = queue.length; j < jLen; j++) {
 									queue[j].check();
 								}
@@ -208,6 +209,8 @@ function LazyClass(scope) {
 
 			// reset
 			me.stat = STAT_NOT_LOAD;
+
+			me.check();
 		}
 
 		rmChild(lazyLoader) {
@@ -268,7 +271,6 @@ class Req {
 		}
 
 		me.canceled = false;
-		me.stat = STAT_LOADING;
 		me.retry = retry;
 
 		el.onload = () => {
@@ -327,6 +329,7 @@ function loadHandler(lazyLoader) {
 		switchClass(elTarget, classLoaded);
 	}
 	else {
+		lazyLoader.stat = STAT_LOADING;
 		lazyLoader.req = new Req({
 			el: el,
 			src: src,
@@ -346,6 +349,3 @@ function loadHandler(lazyLoader) {
 	}
 }
 
-export default {
-	LazyClass
-};

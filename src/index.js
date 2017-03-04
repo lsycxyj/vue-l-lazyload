@@ -70,7 +70,7 @@ const Lazy = {
 			refStr = opts.ref;
 
 		// add to after $refs has references
-		Vue.nextTick(() => {
+		vm.$nextTick(() => {
 			// Prevent it's unbound before initialization
 			if (el._lazyBound) {
 				var ref;
@@ -81,39 +81,44 @@ const Lazy = {
 					}
 				}
 
-				const loader = el._$lazy = new LazyLoader({
-					...opts,
-					parent: ref && ref.$lazy,
-					el: el
-				});
+				const mergedOpts = {
+						...opts,
+						el: el
+					},
+					$lazy = ref && ref.$lazy;
+
+				if ($lazy !== undefined) {
+					mergedOpts.parent = $lazy;
+				}
+
+				const loader = el._$lazy = new LazyLoader(mergedOpts);
 
 				loader.check();
 			}
 		});
 	},
-	componentUpdated(el, binding, vnode) {
-		var opts = binding.value;
+	componentUpdated(el, binding) {
+		var opts = binding.value,
+			oOpts = binding.oldValue,
+			nSrc = isStr(opts) ? opts : opts.src,
+			oSrc = isStr(oOpts) ? oOpts : oOpts.src;
 
-		if (isStr(opts)) {
-			opts = {
-				src: opts
-			};
-		}
+		if (nSrc != oSrc) {
+			const loader = el._$lazy;
 
-		const loader = el._$lazy;
-
-		if (loader) {
-			loader.update({
-				src: opts.src
-			});
+			if (loader) {
+				loader.update({
+					src: nSrc
+				});
+			}
 		}
 	},
-	unbind(el){
+	unbind(el, binding, vnode){
 		if (el._lazyBound) {
 			el._lazyBound = false;
 		}
 
-		Vue.nextTick(() => {
+		vnode.context.$nextTick(() => {
 			const loader = el._$lazy;
 			if (loader) {
 				loader.destroy();
@@ -126,7 +131,7 @@ const Lazy = {
 const VueLLazyload = {
 	install(Vue, options = {}) {
 		LazyLoader = LazyClass(Vue);
-		Vue.prototype.$lazy = new LazyLoader({
+		Vue.$lazy = new LazyLoader({
 			...options,
 			isRoot: true
 		});
@@ -136,8 +141,6 @@ const VueLLazyload = {
 		Vue.component('lazy-ref', LazyRef);
 	}
 };
-
-export default VueLLazyload;
 
 export {
 	LazyRef,
