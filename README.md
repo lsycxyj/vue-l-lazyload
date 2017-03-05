@@ -18,7 +18,7 @@ LGPL-V3
 
 ## Installation
 
-[![vue-l-lazyload](https://nodei.co/npm/vue-l-carousel.png)](https://npmjs.org/package/vue-l-lazyload)
+[![vue-l-lazyload](https://nodei.co/npm/vue-l-lazyload.png)](https://npmjs.org/package/vue-l-lazyload)
 
 `npm install vue-l-lazyload`
 
