@@ -73,7 +73,7 @@ Vue.use(VueLLazyload, config);
         </tr>
         <tr>
             <td>events</td>
-            <td>String or Array<String></td>
+            <td>String or Array&lt;String&gt;</td>
             <td>scroll</td>
             <td>Events to be bound with </td>
         </tr>
