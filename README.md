@@ -135,8 +135,8 @@ Vue.use(VueLLazyload, config);
         </tr>
     </tobdy>
 </table>    
-[1]: All options should not be changed after they have initialized except for [2]  
-[2]: It will mark the node not loaded and load again when it's in parent view. if `once` is set to `false`.
+[1]: All options should not be changed after they have initialized except for [2].  
+[2]: It will mark the node not loaded and load again when it's in parent view. if `once` is set to `false`.  
 [3]: All options will inherit its ancestors' options.
 
 ## Methods
