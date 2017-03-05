@@ -21,11 +21,11 @@ var path = require('path'),
 			libraryTarget: 'umd',
 			library: 'vue-l-lazyload'
 		},
-		vue: {
-			loaders: utils.cssLoaders({
-				extract: true
-			})
-		},
+		// vue: {
+		// 	loaders: utils.cssLoaders({
+		// 		extract: true
+		// 	})
+		// },
 		plugins: [
 			new webpack.optimize.UglifyJsPlugin({
 				compress: {
@@ -38,7 +38,7 @@ var path = require('path'),
 				}
 			}),
 			new webpack.optimize.OccurrenceOrderPlugin(),
-			new ExtractTextPlugin('[name].css'),
+			// new ExtractTextPlugin('[name].css'),
 			new CompressionWebpackPlugin({
 				asset: '[path].gz[query]',
 				algorithm: 'gzip',
@@ -47,7 +47,7 @@ var path = require('path'),
 					['js', 'css'].join('|') +
 					')$'
 				),
-				threshold: 10240,
+				threshold: 5 * 1024,
 				minRatio: 0.8
 			})
 		]

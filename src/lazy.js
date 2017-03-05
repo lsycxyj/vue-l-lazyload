@@ -185,12 +185,13 @@ export function LazyClass(scope) {
 					classLoaded: CLASS_LOADED,
 					// Class name of load error
 					classErr: CLASS_ERR,
-					// Element of class name to be changed
+					// Element of class name to be changed when the load stat changes
 					classTarget: CLASS_TARGET_SELF,
 					// Retry amount, 0 for no retry, -1 for infinite retry.
 					retry: 0,
 					// Remove listener after it has loaded if it is set to true.
 					once: true,
+					// The "resize" ratio of parent view when it's children views compare with it.
 					preloadRatio: 1,
 					...opts,
 				};
@@ -257,6 +258,7 @@ export function LazyClass(scope) {
 				const
 					parentEl = parent.el,
 					preloadRatio = me.opts.preloadRatio,
+					extraPreloadRatio = 1 - preloadRatio,
 					isWin = parentEl === win,
 					parentElOffset = isWin ? {
 						// IE, I'm looking at you
@@ -268,18 +270,24 @@ export function LazyClass(scope) {
 					elOffset = offset(me.el),
 					parentElLeft = parentElOffset.left,
 					parentElTop = parentElOffset.top,
-					parentElWidth = parentElOffset.width * preloadRatio,
-					parentElHeight = parentElOffset.height * preloadRatio,
+					parentElWidth = parentElOffset.width,
+					parentElHeight = parentElOffset.height,
+					parentElExtraWidth = parentElWidth * extraPreloadRatio,
+					parentElExtraHeight = parentElHeight * extraPreloadRatio,
+					parentElFixedTop = parentElTop - parentElExtraHeight / 2,
+					parentElFixedLeft = parentElLeft - parentElExtraWidth / 2,
+					parentElFixedWidth = parentElWidth + parentElExtraWidth,
+					parentElFixedHeight = parentElHeight + parentElExtraHeight,
 					elLeft = elOffset.left,
 					elTop = elOffset.top,
 					elWidth = elOffset.width,
 					elHeight = elOffset.height;
 
 				// Collision detection
-				if (elLeft < parentElLeft + parentElWidth &&
-					elLeft + elWidth > parentElLeft &&
-					elTop < parentElTop + parentElHeight &&
-					elTop + elHeight > parentElTop) {
+				if (elLeft < parentElFixedLeft + parentElFixedWidth &&
+					elLeft + elWidth > parentElFixedLeft &&
+					elTop < parentElFixedTop + parentElFixedHeight &&
+					elTop + elHeight > parentElFixedTop) {
 					result = true;
 				}
 			}
