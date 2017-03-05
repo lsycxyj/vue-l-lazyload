@@ -66,7 +66,7 @@ Vue.use(VueLLazyload, config);
             </td>
         </tr>
         <tr>
-            <td>src</td>
+            <td>src<sup>[2]</sup></td>
             <td>String</td>
             <td>''</td>
             <td>The resource url going to be loaded.</td>
