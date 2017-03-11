@@ -126,8 +126,6 @@ const Lazy = {
 			vnode._lazyBound = false;
 		}
 
-		console.log(vnode);
-
 		vnode.context.$nextTick(() => {
 			const loader = vnode._$lazy;
 			if (loader) {
