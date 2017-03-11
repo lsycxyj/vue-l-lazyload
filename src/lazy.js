@@ -231,7 +231,7 @@ export function LazyClass(scope) {
 			var i,
 				len;
 
-			me.stat < STAT_LOADED && me.inView() && loadHandler(me);
+			me.stat < STAT_LOADING && me.inView() && loadHandler(me);
 
 			const children = me._children;
 

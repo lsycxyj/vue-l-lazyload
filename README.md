@@ -133,6 +133,14 @@ Vue.use(VueLLazyload, config);
                 By default, it will be set as the "src" attribute of the element.
             </td>
         </tr>
+        <tr>
+            <td>regGlobal</td>
+            <td>Boolean</td>
+            <td>true</td>
+            <td>
+                Whether register the directives and components globally or not.
+            </td>
+        </tr>
     </tobdy>
 </table>    
 [1]: All options should not be changed after they have initialized except for [2].  

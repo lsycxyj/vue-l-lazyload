@@ -3,7 +3,7 @@ import app from './App'
 import { VueLLazyload } from '../../src/index';
 
 Vue.use(VueLLazyload, {
-	once: false
+	once: false,
 });
 
 new Vue({

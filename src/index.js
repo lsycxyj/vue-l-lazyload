@@ -66,8 +66,7 @@ const Lazy = {
 			};
 		}
 
-		// vnode will be recreated during update, so bind props with real element
-		el._lazyBound = true;
+		vnode._lazyBound = true;
 
 		const vm = vnode.context,
 			refStr = opts.ref;
@@ -76,7 +75,7 @@ const Lazy = {
 		vm.$nextTick(() => {
 			var ref;
 			// Prevent it's unbound before initialization
-			if (el._lazyBound) {
+			if (vnode._lazyBound) {
 				if (refStr) {
 					ref = vm.$refs[refStr];
 					if (!ref) {
@@ -94,20 +93,26 @@ const Lazy = {
 					mergedOpts.parent = $lazy;
 				}
 
-				const loader = el._$lazy = new LazyLoader(mergedOpts);
+				const loader = vnode._$lazy = new LazyLoader(mergedOpts);
 
 				loader.check();
 			}
 		});
 	},
-	componentUpdated(el, binding) {
+	componentUpdated(el, binding, vnode, ovnode) {
 		var opts = binding.value,
 			oOpts = binding.oldValue,
 			nSrc = isStr(opts) ? opts : opts.src,
 			oSrc = isStr(oOpts) ? oOpts : oOpts.src;
 
+		// vnode will be recreated during update
+		if (vnode !== ovnode) {
+			vnode._lazyBound = ovnode._lazyBound;
+			vnode._$lazy = ovnode._$lazy;
+		}
+
 		if (nSrc != oSrc) {
-			const loader = el._$lazy;
+			const loader = vnode._$lazy;
 
 			if (loader) {
 				loader.update({
@@ -117,31 +122,40 @@ const Lazy = {
 		}
 	},
 	unbind(el, binding, vnode) {
-		if (el._lazyBound) {
-			el._lazyBound = false;
+		if (vnode._lazyBound) {
+			vnode._lazyBound = false;
 		}
 
+		console.log(vnode);
+
 		vnode.context.$nextTick(() => {
-			const loader = el._$lazy;
+			const loader = vnode._$lazy;
 			if (loader) {
 				loader.destroy();
-				el._$lazy = null;
+				vnode._$lazy = null;
 			}
 		});
 	},
 };
 
 const VueLLazyload = {
-	install(Vue, options = {}) {
+	install(Vue, options) {
+		const allOpts = {
+			regGlobal: true,
+			...options,
+		};
+
 		LazyLoader = LazyClass(Vue);
 		Vue.$lazy = new LazyLoader({
 			...options,
 			isRoot: true,
 		});
 
-		Vue.directive('lazy', Lazy);
+		if (allOpts.regGlobal) {
+			Vue.directive('lazy', Lazy);
 
-		Vue.component('lazy-ref', LazyRef);
+			Vue.component('lazy-ref', LazyRef);
+		}
 	},
 };
 
