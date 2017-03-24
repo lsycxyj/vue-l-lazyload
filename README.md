@@ -25,7 +25,7 @@ LGPL-V3
 ## Usage
 ### A simple way:
 ```javascript
-import { VueLLazyload } from 'v-l-lazyload';
+import { VueLLazyload } from 'vue-l-lazyload';
 Vue.use(VueLLazyload, {
 	events: 'scroll'
 });
@@ -36,7 +36,7 @@ Vue.use(VueLLazyload, {
 ```
 ### A more configurable way:
 ```javascript
-import { VueLLazyload } from 'v-l-lazyload';
+import { VueLLazyload } from 'vue-l-lazyload';
 Vue.use(VueLLazyload, config);
 ```
 ```html
