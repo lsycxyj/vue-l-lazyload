@@ -15,19 +15,23 @@ function type(o) {
 	return typeof o;
 }
 
-function isArr(o) {
+export function isArr(o) {
 	return o instanceof Array;
 }
 
-function isStr(o) {
+export function isStr(o) {
 	return type(o) == 'string';
 }
 
-function trim(o) {
+export function isFn(v) {
+	return type(v) == 'function';
+}
+
+export function trim(o) {
 	return o == null ? '' : String.prototype.trim.call(o);
 }
 
-function each(elements, callback) {
+export function each(elements, callback) {
 	var i,
 		len,
 		element;
@@ -37,7 +41,7 @@ function each(elements, callback) {
 	}
 }
 
-function on(element, ev, callback, opts) {
+export function on(element, ev, callback, opts) {
 	if (isStr(ev)) {
 		element.addEventListener(ev, callback, opts);
 	}
@@ -46,7 +50,7 @@ function on(element, ev, callback, opts) {
 	}
 }
 
-function off(element, ev, callback) {
+export function off(element, ev, callback) {
 	if (isStr(ev)) {
 		element.removeEventListener(ev, callback);
 	}
@@ -55,7 +59,7 @@ function off(element, ev, callback) {
 	}
 }
 
-function className(element, value) {
+export function className(element, value) {
 	var klass = element.className || '',
 		svg = klass && klass.baseVal !== undefined;
 
@@ -68,7 +72,7 @@ function className(element, value) {
 	}
 }
 
-function addClass(element, classname) {
+export function addClass(element, classname) {
 	const classList = element.classList;
 	if (classList) {
 		classList.add(classname);
@@ -86,11 +90,11 @@ function addClass(element, classname) {
 	}
 }
 
-function classRE(name) {
+export function classRE(name) {
 	return new RegExp(`(^|\\s)${name}(\\s|$)`);
 }
 
-function removeClass(element, classname) {
+export function removeClass(element, classname) {
 	if (isStr(classname)) {
 		const classList = element.classList;
 		if (classList) {
@@ -107,15 +111,15 @@ function removeClass(element, classname) {
 	}
 }
 
-function attr(el, name, value) {
+export function attr(el, name, value) {
 	el.setAttribute(name, value);
 }
 
-function removeAttr(el, value) {
+export function removeAttr(el, value) {
 	el.removeAttribute(value);
 }
 
-function offset(element) {
+export function offset(element) {
 	const obj = element.getBoundingClientRect();
 	return {
 		left: obj.left + win.pageXOffset,
@@ -126,15 +130,15 @@ function offset(element) {
 }
 
 // TODO to be optimized
-function search(arr, item) {
+export function search(arr, item) {
 	return arr.indexOf(item);
 }
 
-function throttle(fn, threshold = 250, scope) {
+export function throttle(fn, threshold = 250, scope) {
 	var last,
 		deferTimer;
 
-	return function (...args) {
+	return (...args) => {
 		var context = scope || this;
 
 		var now = +new Date();
@@ -153,11 +157,11 @@ function throttle(fn, threshold = 250, scope) {
 	};
 }
 
-function camelize(str) {
+export function camelize(str) {
 	return str.replace(/-+(.)?/g, (match, chr) => (chr ? chr.toUpperCase() : ''));
 }
 
-function dasherize(str) {
+export function dasherize(str) {
 	return str.replace(/::/g, '/')
 		.replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
 		.replace(/([a-z\d])([A-Z])/g, '$1_$2')
@@ -165,11 +169,11 @@ function dasherize(str) {
 		.toLowerCase();
 }
 
-function maybeAddPx(name, value) {
+export function maybeAddPx(name, value) {
 	return (type(value) == 'number' && !cssNumber[dasherize(name)]) ? `${value}px` : value;
 }
 
-function css(element, property, value) {
+export function css(element, property, value) {
 	/* eslint consistent-return: 0 */
 	const elementSytle = element.style;
 	if (arguments.length < 3) {
@@ -182,21 +186,3 @@ function css(element, property, value) {
 		elementSytle[dasherize(property)] = maybeAddPx(property, value);
 	}
 }
-
-export const $ = {
-	on,
-	off,
-	trim,
-	type,
-	isArr,
-	isStr,
-	addClass,
-	removeClass,
-	attr,
-	css,
-	removeAttr,
-	each,
-	offset,
-	search,
-	throttle,
-};

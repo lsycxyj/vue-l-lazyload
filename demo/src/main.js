@@ -1,5 +1,5 @@
-import Vue from 'vue'
-import app from './App'
+import Vue from 'vue';
+import App from './App.vue';
 import { VueLLazyload } from '../../src/index';
 
 Vue.use(VueLLazyload, {
@@ -8,8 +8,8 @@ Vue.use(VueLLazyload, {
 
 new Vue({
 	el: '#app',
-	template: '<app></app>',
 	components: {
-		app
-	}
+		App,
+	},
+	render: h => h(App),
 });

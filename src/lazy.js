@@ -1,4 +1,20 @@
-import { $ } from './util';
+import {
+	on,
+	off,
+	trim,
+	addClass,
+	removeClass,
+	attr,
+	css,
+	removeAttr,
+	offset,
+	isArr,
+	search,
+	throttle,
+	isFn,
+} from './util';
+
+// TODO intersection observer
 
 /* global window, Image */
 const EV_SCROLL = 'scroll',
@@ -18,22 +34,6 @@ const EV_SCROLL = 'scroll',
 
 	win = window;
 
-
-const {
-	on,
-	off,
-	trim,
-	addClass,
-	removeClass,
-	attr,
-	css,
-	removeAttr,
-	offset,
-	isArr,
-	search,
-	throttle,
-} = $;
-
 var loaderID = 0;
 
 var supportsPassive = false;
@@ -50,30 +50,86 @@ catch (e) {
 }
 
 class Req {
-	constructor({ el, src, retry, onLoad, onErr }) {
+	constructor({ el, loadEl, src, retry, onLoad, onErr, onReq, filters }) {
 		const me = this;
 
+		function _baseInfo() {
+			return {
+				el,
+				src: me.src,
+				oSrc: src,
+			};
+		}
+
 		function load() {
-			removeAttr(el, 'src');
-			attr(el, 'src', src);
+			removeAttr(loadEl, 'src');
+			attr(loadEl, 'src', me.src);
+			onReq && onReq(_baseInfo());
+		}
+
+		function _onErr(opts) {
+			onErr && onErr({
+				..._baseInfo(),
+				...opts,
+			});
+		}
+
+		function applyFilters(src) {
+			let ret = src;
+			if (filters) {
+				ret = filters.reduce((lastResult, cur) => cur(lastResult, { el }), src);
+			}
+			return ret;
+		}
+
+		function next(result) {
+			const { failed, src: nSrc } = { failed: false, ...result };
+			if (!failed) {
+				if (nSrc) {
+					me.src = nSrc;
+				}
+
+				load();
+				me.c++;
+			}
+			else {
+				_onErr();
+			}
 		}
 
 		me.canceled = false;
 		me.retry = retry;
+		me.c = 0;
+		me.src = applyFilters(src);
 
-		el.onload = () => {
-			!me.canceled && onLoad && onLoad();
+		loadEl.onload = () => {
+			// Only requests which are not canceled will notify events
+			!me.canceled && onLoad && onLoad(_baseInfo());
 		};
 
-		el.onerror = () => {
+		loadEl.onerror = () => {
+			// Only requests which are not canceled will notify events
 			if (!me.canceled) {
 				const retry = me.retry;
-				if (retry == -1 || retry > 0) {
+				if (isFn(retry)) {
+					_onErr();
+					retry({
+						..._baseInfo(),
+						times: me.c,
+						next,
+						applyFilters,
+					});
+				}
+				else if (retry == -1 || retry > 0) {
+					_onErr();
+
 					load();
 					retry > 0 && me.retry--;
 				}
 				else {
-					onErr && onErr();
+					_onErr({
+						isEnd: true,
+					});
 				}
 			}
 		};
@@ -90,21 +146,25 @@ function loadHandler(lazyLoader) {
 	const opts = lazyLoader.opts,
 		oReq = lazyLoader.req;
 	var {
-		src,
-		el,
-		classTarget,
-		retry,
-		once,
-		classLoading,
-		classErr,
-		classLoaded,
-	} = opts,
+			classErr,
+			classLoaded,
+			classLoading,
+			classTarget,
+			el,
+			once,
+			retry,
+			src,
+			filters,
+			onLoad,
+			onErr,
+			onReq,
+		} = opts,
 		loadEl = el,
-		onLoad,
-		onErr;
+		_onLoad,
+		_onErr;
 
 	const classes = [classLoading, classErr, classLoaded],
-		elTarget = classTarget == CLASS_TARGET_PARENT ? el.parentNode || el : el;
+		elClassTarget = classTarget === CLASS_TARGET_PARENT ? el.parentNode || el : el;
 
 	function switchClass(el, className) {
 		removeClass(el, classes);
@@ -117,12 +177,12 @@ function loadHandler(lazyLoader) {
 
 	switch (lazyLoader.opts.mode) {
 	case MODE_BG:
-		css(el, 'background-image', 'none');
-		onLoad = () => {
-			css(el, 'background-image', `url(${src})`);
+		css(el, 'background-image', '');
+		_onLoad = () => {
+			css(el, 'background-image', `url(${lazyLoader.req.src})`);
 		};
-		onErr = () => {
-			css(el, 'background-image', 'none');
+		_onErr = () => {
+			css(el, 'background-image', '');
 		};
 		loadEl = new Image();
 		break;
@@ -131,29 +191,39 @@ function loadHandler(lazyLoader) {
 
 	if (!src) {
 		lazyLoader.stat = STAT_LOADED;
-		switchClass(elTarget, classLoaded);
+		switchClass(elClassTarget, classLoaded);
 	}
 	else {
 		lazyLoader.stat = STAT_LOADING;
 
 		lazyLoader.req = new Req({
-			el: loadEl,
+			el,
+			loadEl,
 			src,
 			retry,
-			onLoad: () => {
-				onLoad && onLoad();
+			filters,
+			onLoad(info) {
+				_onLoad && _onLoad();
 				lazyLoader.stat = STAT_LOADED;
-				switchClass(elTarget, classLoaded);
+				switchClass(elClassTarget, classLoaded);
 				once && lazyLoader.destroy();
+
+				onLoad && onLoad(info);
 			},
-			onErr: () => {
-				onErr && onErr();
-				lazyLoader.stat = STAT_LOADED;
-				switchClass(elTarget, classErr);
-				once && lazyLoader.destroy();
+			onErr(info) {
+				_onErr && _onErr();
+
+				if (info.isEnd) {
+					lazyLoader.stat = STAT_LOADED;
+					switchClass(elClassTarget, classErr);
+					once && lazyLoader.destroy();
+				}
+
+				onErr && onErr(info);
 			},
+			onReq,
 		});
-		switchClass(elTarget, classLoading);
+		switchClass(elClassTarget, classLoading);
 	}
 }
 

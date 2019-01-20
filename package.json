@@ -1,6 +1,6 @@
 {
   "name": "vue-l-lazyload",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A lazyload plugin for Vue.js v2.x+.",
   "main": "dist/main.js",
   "directories": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "webpack --config ./build/webpack.dev.conf.js --watch",
+    "startDev": "webpack-dev-server --config ./build/webpack.devServer.conf.js --hot",
     "dist": "webpack --config ./build/webpack.prod.conf.js",
     "unit": "cross-env BABEL_ENV=test karma start test/unit/karma.conf.js --single-run"
   },
@@ -39,8 +40,9 @@
     "babel-preset-stage-2": "^6.18.0",
     "babel-runtime": "^6.20.0",
     "compression-webpack-plugin": "^0.3.2",
+    "copy-webpack-plugin": "^4.6.0",
     "cross-env": "^3.1.4",
-    "css-loader": "^0.26.1",
+    "css-loader": "^2.1.0",
     "eslint": "^3.13.0",
     "eslint-config-airbnb": "^14.0.0",
     "eslint-friendly-formatter": "^2.0.7",
@@ -53,6 +55,7 @@
     "extract-text-webpack-plugin": "^1.0.1",
     "file-loader": "^0.9.0",
     "function-bind": "^1.1.0",
+    "html-webpack-plugin": "^3.2.0",
     "jasmine": "^2.5.3",
     "jquery": "^3.1.1",
     "karma": "^1.4.0",
@@ -67,14 +70,19 @@
     "karma-spec-reporter": "0.0.26",
     "karma-webpack": "^2.0.1",
     "less": "^2.7.2",
-    "less-loader": "^2.2.3",
+    "less-loader": "^4.1.0",
+    "mini-css-extract-plugin": "^0.5.0",
     "phantomjs-prebuilt": "^2.1.14",
-    "url-loader": "^0.5.7",
-    "vue-loader": "^10.0.0",
+    "postcss-loader": "^3.0.0",
+    "uglifyjs-webpack-plugin": "^2.1.1",
+    "url-loader": "^1.1.2",
+    "vue-loader": "^15.5.1",
     "vue-style-loader": "^1.0.0",
     "vue-template-compiler": "^2.1.0",
-    "webpack": "^1.14.0",
-    "webpack-merge": "^2.3.1"
+    "webpack": "^4.28.1",
+    "webpack-cli": "^3.2.1",
+    "webpack-dev-server": "^3.1.14",
+    "webpack-merge": "^4.2.1"
   },
   "engines": {
     "node": ">= 4.0.0",

@@ -1,17 +1,29 @@
-import { $ } from './util';
+import {
+	isStr,
+} from './util';
 import { LazyClass } from './lazy';
+
+/**
+ * @license
+ * @preserve
+ * vue-l-lazyload
+ *
+ * Copyright (c) 2017 - NOW Light Leung
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ */
 
 var LazyLoader;
 
-const {
-	isStr,
-} = $;
-
 function log(content) {
+  // eslint-disable-next-line no-console
 	console.log(`v-l-lazyload: ${content}`);
 }
 
-const LazyRef = {
+export const LazyRef = {
 	props: {
 		tag: {
 			type: String,
@@ -56,7 +68,7 @@ const LazyRef = {
 	},
 };
 
-const Lazy = {
+export const Lazy = {
 	bind(el, binding, vnode) {
 		var opts = binding.value;
 
@@ -136,7 +148,11 @@ const Lazy = {
 	},
 };
 
-const VueLLazyload = {
+// TODO
+export const LazyComp = {
+};
+
+export const VueLLazyload = {
 	install(Vue, options) {
 		const allOpts = {
 			regGlobal: true,
@@ -155,21 +171,4 @@ const VueLLazyload = {
 			Vue.component('lazy-ref', LazyRef);
 		}
 	},
-};
-
-/**
- * @license
- * vue-l-lazyload
- *
- * Copyright (c) 2017 - NOW Light Leung
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- */
-export {
-	LazyRef,
-	Lazy,
-	VueLLazyload,
 };
