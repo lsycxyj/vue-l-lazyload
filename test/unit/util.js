@@ -16,7 +16,7 @@ function isStr(o) {
 
 function destroyVM(vm) {
 	if (vm) {
-		let el = vm.$el;
+		const el = vm.$el;
 		if (el && el.parentNode) {
 			$(el).remove();
 		}
@@ -35,24 +35,24 @@ function createAndReplaceElem() {
 }
 
 function createVM(Compo, propsData = {}, mounted) {
-	const nPropsData = {...propsData};
+	const nPropsData = { ...propsData };
 	const el = createAndReplaceElem();
 	let VueExtended = Vue;
 	if (isStr(Compo)) {
 		nPropsData.template = Compo;
 	}
-	//Component
+	// Component
 	else {
 		VueExtended = Vue.extend(Vue);
 	}
-	return new VueExtended(nPropsData).$mount(mounted === false ? null : el)
+	return new VueExtended(nPropsData).$mount(mounted === false ? null : el);
 }
 
 function cssTextToObject(txt) {
 	const result = {};
 	txt.split(';').forEach((term) => {
 		const splits = term.split(':');
-		if(splits && splits.length == 2) {
+		if (splits && splits.length == 2) {
 			const key = splits[0].trim(),
 				value = splits[1].trim();
 			result[key] = value;
@@ -62,7 +62,7 @@ function cssTextToObject(txt) {
 }
 
 function genImgSrc() {
-	return 'img/lenna.png?_t=' + Math.floor(Math.random() * 100000) + '.' + Date.now();
+	return `img/lenna.png?_t=${Math.floor(Math.random() * 100000)}.${Date.now()}`;
 }
 
 function genImgList(len) {
@@ -72,7 +72,7 @@ function genImgList(len) {
 	}
 	return arr;
 }
-export  {
+export {
 	destroyVM,
 	createAndReplaceElem,
 	createVM,

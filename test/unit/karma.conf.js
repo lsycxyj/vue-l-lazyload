@@ -5,16 +5,12 @@ var path = require('path');
 var merge = require('webpack-merge');
 var baseConfig = require('../../build/webpack.base.conf');
 var webpack = require('webpack');
+
 var projectRoot = path.resolve(__dirname, '../../');
 
 var webpackConfig = merge(baseConfig, {
 	// use inline sourcemap for karma-sourcemap-loader
 	devtool: '#inline-source-map',
-	vue: {
-		loaders: {
-			js: 'babel-loader'
-		}
-	}
 });
 
 // no need for app entry during tests
@@ -23,7 +19,7 @@ delete webpackConfig.entry;
 delete webpackConfig.externals;
 
 // Use babel for test files too
-webpackConfig.module.loaders.some(function (loader, i) {
+webpackConfig.module.rules.some((loader, i) => {
 	if (/^babel(-loader)?$/.test(loader.loader)) {
 		loader.include.push(path.resolve(projectRoot, 'test/unit'));
 		return true;
@@ -39,12 +35,12 @@ module.exports = function (config) {
 
 		// frameworks to use
 		// available frameworks: https://npmjs.org/browse/keyword/karma-adapter
-		frameworks: ['jasmine'],
+		frameworks: ['mocha'],
 
 
 		// list of files / patterns to load in the browser
 		files: [
-			'./index.js'
+			'./index.js',
 		],
 
 
@@ -55,7 +51,7 @@ module.exports = function (config) {
 		// preprocess matching files before serving them to the browser
 		// available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
 		preprocessors: {
-			'./index.js': ['webpack', 'sourcemap']
+			'./index.js': ['webpack', 'sourcemap'],
 		},
 
 
@@ -63,21 +59,24 @@ module.exports = function (config) {
 		// possible values: 'dots', 'progress'
 		// available reporters: https://npmjs.org/browse/keyword/karma-reporter
 		// add coverage support with babel's test plugins
-		reporters: ['spec', 'coverage'],
+		reporters: [
+			'mocha',
+			// 'coverage',
+		],
 
 		// webpack
 		webpack: webpackConfig,
 		webpackMiddleware: {
-			noInfo: true
+			noInfo: true,
 		},
 		// Coverage options
-		coverageReporter: {
-			dir: './coverage',
-			reporters: [
-				{type: 'lcov', subdir: '.'},
-				{type: 'text-summary'}
-			]
-		},
+		// coverageReporter: {
+		// 	dir: './coverage',
+		// 	reporters: [
+		// 		{ type: 'lcov', subdir: '.' },
+		// 		{ type: 'text-summary' },
+		// 	],
+		// },
 
 		// web server port
 		port: 9876,
@@ -116,6 +115,6 @@ module.exports = function (config) {
 
 		// Concurrency level
 		// how many browser should be started simultaneous
-		concurrency: Infinity
+		concurrency: Infinity,
 	});
 };

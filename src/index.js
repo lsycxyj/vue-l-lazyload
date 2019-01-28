@@ -2,10 +2,13 @@ import {
 	isStr,
 } from './util';
 import { LazyClass } from './lazy';
+import _LazyComp from './LazyComp.vue';
+import _InViewComp from './InViewComp.vue';
+
+export { COMP_NOT_LOAD, COMP_LOADING, COMP_LOADED, COMP_ERR } from './LazyComp.vue';
 
 /**
  * @license
- * @preserve
  * vue-l-lazyload
  *
  * Copyright (c) 2017 - NOW Light Leung
@@ -16,10 +19,14 @@ import { LazyClass } from './lazy';
  * Lesser General Public License for more details.
  */
 
-var LazyLoader;
+let LazyLoader;
+
+export function getLazyLoader() {
+	return LazyLoader;
+}
 
 function log(content) {
-  // eslint-disable-next-line no-console
+	// eslint-disable-next-line no-console
 	console.log(`v-l-lazyload: ${content}`);
 }
 
@@ -48,6 +55,8 @@ export const LazyRef = {
 			...vm.opts,
 			el,
 		});
+		// Initial check to update lastInView status
+		vm.check();
 	},
 	destroyed() {
 		this.$lazy.destroy();
@@ -148,9 +157,8 @@ export const Lazy = {
 	},
 };
 
-// TODO
-export const LazyComp = {
-};
+export const InViewComp = _InViewComp;
+export const LazyComp = _LazyComp;
 
 export const VueLLazyload = {
 	install(Vue, options) {
@@ -160,6 +168,7 @@ export const VueLLazyload = {
 		};
 
 		LazyLoader = LazyClass(Vue);
+		// Set root lazy loader
 		Vue.$lazy = new LazyLoader({
 			...options,
 			isRoot: true,

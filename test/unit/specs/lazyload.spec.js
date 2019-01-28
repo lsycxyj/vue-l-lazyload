@@ -1,11 +1,15 @@
 // TODO
 
-import $ from 'jquery';
-import { VueLLazyload } from '../../../src/index';
-import {cssTextToObject, createVM, destroyVM, genImgSrc, genImgList} from '../util';
+// import $ from 'jquery';
+// import { VueLLazyload } from '../../../src/index';
+// import { cssTextToObject, createVM, destroyVM, genImgSrc, genImgList } from '../util';
+import { expect } from 'chai';
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 20 * 1000;
-
+describe('LazyClass', () => {
+	it('Hellow world', () => {
+		expect(true).to.be.equal(true);
+	});
+});
 // describe('Suite: test vue-l-lazyload', () => {
 // 		const $body = $('body');
 // 	let vm;

@@ -129,33 +129,7 @@ export function offset(element) {
 	};
 }
 
-// TODO to be optimized
-export function search(arr, item) {
-	return arr.indexOf(item);
-}
-
-export function throttle(fn, threshold = 250, scope) {
-	var last,
-		deferTimer;
-
-	return (...args) => {
-		var context = scope || this;
-
-		var now = +new Date();
-		if (last && now < last + threshold) {
-			// hold on to it
-			clearTimeout(deferTimer);
-			deferTimer = setTimeout(() => {
-				last = now;
-				fn.apply(context, args);
-			}, threshold);
-		}
-		else {
-			last = now;
-			fn.apply(context, args);
-		}
-	};
-}
+export function noop() {}
 
 export function camelize(str) {
 	return str.replace(/-+(.)?/g, (match, chr) => (chr ? chr.toUpperCase() : ''));
@@ -186,3 +160,55 @@ export function css(element, property, value) {
 		elementSytle[dasherize(property)] = maybeAddPx(property, value);
 	}
 }
+
+// Not for map with empty values
+export function FMap() {
+	const me = this;
+	me._m = Object.create(null);
+	me._l = 0;
+}
+
+FMap.prototype.get = function (k) {
+	const me = this;
+	return me._m[k];
+};
+
+FMap.prototype.set = function (k, v) {
+	const me = this;
+	if (!me.has(k)) {
+		me._m[k] = v;
+		me._l++;
+	}
+};
+
+FMap.prototype.rm = function (k) {
+	const me = this;
+	if (me.has(k)) {
+		delete me._m[k];
+		me._l--;
+	}
+};
+
+FMap.prototype.has = function (k) {
+	return !!this._m[k];
+};
+
+FMap.prototype.keys = function () {
+	return Object.keys(this._m);
+};
+
+FMap.prototype.values = function () {
+	const me = this;
+	const { _m } = me;
+	const ret = [];
+	/* eslint-disable guard-for-in, no-restricted-syntax */
+	for (const k in _m) {
+		/* eslint-disable guard-for-in, no-restricted-syntax */
+		ret.push(_m[k]);
+	}
+	return ret;
+};
+
+FMap.prototype.size = function () {
+	return this._l;
+};

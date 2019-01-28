@@ -2,6 +2,8 @@ import Vue from 'vue';
 import App from './App.vue';
 import { VueLLazyload } from '../../src/index';
 
+window.Vue = Vue;
+
 Vue.use(VueLLazyload, {
 	once: false,
 });

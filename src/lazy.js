@@ -1,3 +1,5 @@
+import debounce from 'lodash/debounce';
+import throttle from 'lodash/throttle';
 import {
 	on,
 	off,
@@ -9,9 +11,8 @@ import {
 	removeAttr,
 	offset,
 	isArr,
-	search,
-	throttle,
 	isFn,
+	FMap,
 } from './util';
 
 // TODO intersection observer
@@ -26,13 +27,15 @@ const EV_SCROLL = 'scroll',
 	CLASS_TARGET_SELF = 'self',
 	CLASS_TARGET_PARENT = 'parent',
 
+	// THROTTLE_METHOD_THROTTLE = 'throttle',
+	THROTTLE_METHOD_DEBOUNCE = 'debounce',
+
 	MODE_BG = 'bg',
-
-	STAT_NOT_LOAD = 0,
-	STAT_LOADING = 1,
-	STAT_LOADED = 2,
-
 	win = window;
+
+export const STAT_NOT_LOAD = 0;
+export const STAT_LOADING = 1;
+export const STAT_LOADED = 2;
 
 var loaderID = 0;
 
@@ -93,7 +96,9 @@ class Req {
 				me.c++;
 			}
 			else {
-				_onErr();
+				_onErr({
+					isEnd: true,
+				});
 			}
 		}
 
@@ -142,7 +147,7 @@ class Req {
 	}
 }
 
-function loadHandler(lazyLoader) {
+function defaultLoadHandler(lazyLoader) {
 	const opts = lazyLoader.opts,
 		oReq = lazyLoader.req;
 	var {
@@ -176,17 +181,17 @@ function loadHandler(lazyLoader) {
 	src = trim(src);
 
 	switch (lazyLoader.opts.mode) {
-	case MODE_BG:
-		css(el, 'background-image', '');
-		_onLoad = () => {
-			css(el, 'background-image', `url(${lazyLoader.req.src})`);
-		};
-		_onErr = () => {
+		case MODE_BG:
 			css(el, 'background-image', '');
-		};
-		loadEl = new Image();
-		break;
-	default:// empty
+			_onLoad = () => {
+				css(el, 'background-image', `url(${lazyLoader.req.src})`);
+			};
+			_onErr = () => {
+				css(el, 'background-image', '');
+			};
+			loadEl = new Image();
+			break;
+		default:// empty
 	}
 
 	if (!src) {
@@ -263,6 +268,12 @@ export function LazyClass(scope) {
 					once: true,
 					// The "resize" ratio of parent view when it's children views compare with it.
 					preloadRatio: 1,
+					// Throttling method
+					throttleMethod: THROTTLE_METHOD_DEBOUNCE,
+					// Throttling time in ms
+					throttleTime: 250,
+					// Load handler which controls the load status and behaviors
+					loadHandler: defaultLoadHandler,
 					...opts,
 				};
 			}
@@ -270,15 +281,19 @@ export function LazyClass(scope) {
 				// inherit parent LazyLoader's options
 				const $rootLazy = scope.$lazy;
 				opts = {
-					parent: $rootLazy,
 					...(parent && parent.opts || $rootLazy.opts),
 					...opts,
+					parent: $rootLazy,
+					isRoot: false,
 				};
 			}
 
 			const {
 				el,
 				events,
+				throttleMethod,
+				throttleTime,
+				loadHandler,
 			} = opts;
 			parent = opts.parent;
 
@@ -286,33 +301,37 @@ export function LazyClass(scope) {
 			me.id = ++loaderID;
 			me.el = el;
 			me.stat = STAT_NOT_LOAD;
-			me._children = [];
+			me._children = new FMap();
 			me._queues = {};
 			// save for remove
 			me._cbs = {};
 			me.events = isArr(events) ? events : [events];
 			me.opts = opts;
+			me._lastInView = false;
+			me._throttle = throttleMethod === THROTTLE_METHOD_DEBOUNCE ? debounce : throttle;
+			me._tTime = throttleTime;
+			me._loadHandler = loadHandler;
 
 			parent && parent.addChild(me);
 		}
 
 		check(evName) {
 			const me = this;
-			var i,
-				len;
+			const isInView = me.stat < STAT_LOADING && me.inView();
 
-			me.stat < STAT_LOADING && me.inView() && loadHandler(me);
+			if (isInView) {
+				me._loadHandler(me);
 
-			const children = me._children;
+				const children = me._children;
 
-			if (children.length) {
-				const queues = me._queues,
-					queue = evName ? queues[evName] : children;
+				if (children.size()) {
+					const queues = me._queues,
+						queue = evName ? queues[evName] : children;
 
-				if (queue) {
-					for (i = 0, len = queue.length; i < len; i++) {
-						const item = queue[i];
-						item.check();
+					if (queue) {
+						children.keys().forEach((k) => {
+							children.get(k).check();
+						});
 					}
 				}
 			}
@@ -320,47 +339,80 @@ export function LazyClass(scope) {
 
 		inView() {
 			const me = this,
-				parent = me.parent;
+				{ parent, opts } = me,
+				{ onEnter, onLeave } = opts;
 
-			var result = false;
+			let result = false;
 
 			if (parent) {
-				const
-					parentEl = parent.el,
-					preloadRatio = me.opts.preloadRatio,
-					extraPreloadRatio = 1 - preloadRatio,
-					isWin = parentEl === win,
-					parentElOffset = isWin ? {
-						// IE, I'm looking at you
-						left: win.pageXOffset,
-						top: win.pageYOffset,
-						width: win.innerWidth,
-						height: win.innerHeight,
-					} : offset(parentEl),
-					elOffset = offset(me.el),
-					parentElLeft = parentElOffset.left,
-					parentElTop = parentElOffset.top,
-					parentElWidth = parentElOffset.width,
-					parentElHeight = parentElOffset.height,
-					parentElExtraWidth = parentElWidth * extraPreloadRatio,
-					parentElExtraHeight = parentElHeight * extraPreloadRatio,
-					parentElFixedTop = parentElTop - parentElExtraHeight / 2,
-					parentElFixedLeft = parentElLeft - parentElExtraWidth / 2,
-					parentElFixedWidth = parentElWidth + parentElExtraWidth,
-					parentElFixedHeight = parentElHeight + parentElExtraHeight,
-					elLeft = elOffset.left,
-					elTop = elOffset.top,
-					elWidth = elOffset.width,
-					elHeight = elOffset.height;
+				const parentEl = parent.el,
+					isParentWin = parentEl === win;
+				// window element is always in view
+				if (isParentWin
+					// Or until parent in view
+					|| parent._lastInView) {
+					let parentElTopSupplement = 0,
+						parentElHeightSupplement = 0,
+						parentElLeftSupplement = 0,
+						parentElWidthSupplement = 0;
+					const parentElOffset = isParentWin ? {
+							// IE, I'm looking at you
+							left: win.pageXOffset,
+							top: win.pageYOffset,
+							width: win.innerWidth,
+							height: win.innerHeight,
+						} : offset(parentEl),
+						parentElLeft = parentElOffset.left,
+						parentElTop = parentElOffset.top,
+						parentElWidth = parentElOffset.width,
+						parentElHeight = parentElOffset.height;
 
-				// Collision detection
-				if (elLeft < parentElFixedLeft + parentElFixedWidth &&
-					elLeft + elWidth > parentElFixedLeft &&
-					elTop < parentElFixedTop + parentElFixedHeight &&
-					elTop + elHeight > parentElFixedTop) {
-					result = true;
+					if (!isParentWin) {
+						const { pageXOffset, pageYOffset, innerWidth, innerHeight } = win;
+						const diffTop = parentElTop - pageYOffset;
+						const diffBottom = pageYOffset + innerHeight - parentElTop - parentElHeight;
+						const diffLeft = parentElLeft - pageXOffset;
+						const diffRight = pageXOffset + innerWidth - parentElLeft - parentElWidth;
+						// console.log('diff', diffTop, diffBottom, diffLeft, diffRight);
+						// Guard for parent element outside the window
+						parentElTopSupplement = diffTop < 0 ? diffTop : 0;
+						parentElHeightSupplement = parentElTopSupplement + (diffBottom < 0 ? diffBottom : 0);
+						parentElLeftSupplement = diffLeft < 0 ? diffLeft : 0;
+						parentElWidthSupplement = parentElLeftSupplement + (diffRight < 0 ? diffRight : 0);
+					}
+
+					const preloadRatio = me.opts.preloadRatio,
+						extraPreloadRatio = 1 - preloadRatio,
+						elOffset = offset(me.el),
+						parentElExtraWidth = (parentElWidth + parentElWidthSupplement) * extraPreloadRatio,
+						parentElExtraHeight = (parentElHeight + parentElHeightSupplement) * extraPreloadRatio,
+						parentElFixedTop = parentElTop + parentElTopSupplement - parentElExtraHeight / 2,
+						parentElFixedLeft = parentElLeft + parentElLeftSupplement - parentElExtraWidth / 2,
+						parentElFixedWidth = parentElWidth + parentElExtraWidth,
+						parentElFixedHeight = parentElHeight + parentElExtraHeight,
+						elLeft = elOffset.left,
+						elTop = elOffset.top,
+						elWidth = elOffset.width,
+						elHeight = elOffset.height;
+
+					// console.log('Sup', parentElTopSupplement, parentElLeftSupplemnt, parentElHeightSupplement, parentElWidthSupplement);
+					// console.log(me.el, elTop, elLeft, elHeight, elWidth, parentElFixedTop, parentElFixedLeft, parentElFixedHeight, parentElWidth);
+
+					// Collision detection
+					if (elLeft < parentElFixedLeft + parentElFixedWidth &&
+						elLeft + elWidth > parentElFixedLeft &&
+						elTop < parentElFixedTop + parentElFixedHeight &&
+						elTop + elHeight > parentElFixedTop) {
+						result = true;
+					}
 				}
 			}
+
+			const { _lastInView } = me;
+			onEnter && _lastInView !== result && result && onEnter({ $lazy: me });
+			onLeave && _lastInView !== result && !result && onLeave({ $lazy: me });
+
+			me._lastInView = result;
 
 			return result;
 		}
@@ -377,35 +429,33 @@ export function LazyClass(scope) {
 
 			function bindEvent(queue) {
 				var cbs = me._cbs,
-					cb = cbs[event],
-					j,
-					jLen;
+					cb = cbs[event];
 
 				if (!cb) {
-					cb = cbs[event] = throttle(() => {
-						for (j = 0, jLen = queue.length; j < jLen; j++) {
-							queue[j].check();
-						}
-					});
-				}
+					cb = cbs[event] = me._throttle(() => {
+						queue.keys().forEach((k) => {
+							queue.get(k).check();
+						});
+					}, me._tTime);
 
-				on(el, event, cb, supportsPassive ? {
-					passive: true,
-				} : 0);
+					on(el, event, cb, supportsPassive ? {
+						passive: true,
+					} : 0);
+				}
 			}
 
-			me._children.push(lazyLoader);
+			me._children.set(lazyLoader.id, lazyLoader);
 
 			for (i = 0, len = events.length; i < len; i++) {
 				event = events[i];
 				queue = me._queues[event];
 
 				if (!queue) {
-					queue = me._queues[event] = [];
+					queue = me._queues[event] = new FMap();
 
 					bindEvent(queue);
 				}
-				queue.push(lazyLoader);
+				queue.set(lazyLoader.id, lazyLoader);
 			}
 		}
 
@@ -429,25 +479,22 @@ export function LazyClass(scope) {
 				children = me._children,
 				events = Object.keys(queues);
 
-			var index = search(children, lazyLoader),
-				i,
+			var i,
 				len;
 
-			if (index >= 0) {
-				children.splice(index, 1);
+			if (children.has(lazyLoader.id)) {
+				children.rm(lazyLoader.id);
 			}
 
 			for (i = 0, len = events.length; i < len; i++) {
 				const event = events[i],
 					queue = queues[event];
 
-				index = search(queue, lazyLoader);
-
-				if (index >= 0) {
-					queue.splice(index, 1);
+				if (queue.has(lazyLoader.id)) {
+					queue.rm(lazyLoader.id);
 				}
 
-				if (queue.length == 0) {
+				if (queue.size() === 0) {
 					const cbs = me._cbs,
 						cb = cbs[event];
 

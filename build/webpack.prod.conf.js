@@ -20,22 +20,23 @@ var path = require('path'),
 			library: 'vue-l-lazyload',
 		},
 		optimization: {
-		  minimizer: [
-			new UglifyJsPlugin({
-				uglifyOptions: {
-					compress: {
-						warnings: false,
-						dead_code: true,
-						unused: true,
-						collapse_vars: true,
-						reduce_vars: true,
-						loops: true,
+			minimizer: [
+				new UglifyJsPlugin({
+					uglifyOptions: {
+						compress: {
+							warnings: false,
+							dead_code: true,
+							unused: true,
+							collapse_vars: true,
+							reduce_vars: true,
+							loops: true,
+						},
+						output: {
+							comments: /@license/i,
+						},
 					},
-            // TODO Somehow not work
-					comments: /@preserve/i,
-				},
-			}),
-		],
+				}),
+			],
 		},
 		plugins: [
 			new webpack.optimize.OccurrenceOrderPlugin(),
@@ -44,8 +45,8 @@ var path = require('path'),
 				algorithm: 'gzip',
 				test: new RegExp(
 					`\\.(${
-					['js', 'css'].join('|')
-					})$`,
+						['js', 'css'].join('|')
+						})$`,
 				),
 				threshold: 5 * 1024,
 				minRatio: 0.8,

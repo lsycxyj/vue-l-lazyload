@@ -1,12 +1,12 @@
 <style lang="less">
   .lazy-ref {
-    height: 640px;
+    height: 320px;
     overflow: auto;
   }
 
   img {
-    width: 200px;
-    height: 200px;
+    width: 400px;
+    height: 400px;
     display: inline-block;
   }
 
@@ -71,26 +71,45 @@
 <template>
   <div>
     <div>
-      <lazy-ref ref="lazyRef" class="lazy-ref"
-                :opts="{classTarget: 'parent', retry: lazyRetryFn, filters: notExistsFilters, onLoad: lazyOnLoad, onErr: lazyOnErr}">
-        <div>
+      <div class="div-list">
+        <div class="img-div" v-for="img in imgsDIV" v-lazy="{src:img, mode: 'bg', filters: lazyFilters}"></div>
+      </div>
+    </div>
+    <lazy-ref ref="lazyRef" class="lazy-ref"
+              :opts="{classTarget: 'parent', retry: lazyRetryFn, filters: notExistsFilters, onLoad: lazyOnLoad, onErr: lazyOnErr}">
+      <div>
+        <img v-lazy="{ref:'lazyRef', src:img}">
+      </div>
+      <div class="list">
+        <div v-for="img in imgs">
           <img v-lazy="{ref:'lazyRef', src:img}">
         </div>
-        <div class="list">
-          <div v-for="img in imgs">
-            <img v-lazy="{ref:'lazyRef', src:img}">
-          </div>
-        </div>
-      </lazy-ref>
-    </div>
-    <div class="div-list">
-      <div class="img-div" v-for="img in imgsDIV" v-lazy="{src:img, mode: 'bg', filters: lazyFilters}"></div>
-    </div>
+      </div>
+    </lazy-ref>
     <div class="list">
       <div v-for="img in imgs">
         <img v-lazy="{classTarget:'parent', src:img}">
       </div>
     </div>
+    <in-view-comp class="in-view-comp" :opts="inViewOpts">{{inViewCompText}}</in-view-comp>
+    <lazy-comp class="lazy-comp" :opts="lazyCompOpts" :stat="lazyCompStat" tag="section">
+      <div>
+        <p>Loaded, loader destroyed</p>
+      </div>
+      <div slot="loading">
+        <p>Loading</p>
+        <button @click="setLoadErr">setLoadErr</button>
+        <button @click="setLoaded">setLoaded</button>
+      </div>
+      <div slot="err">
+        <p>Load Err</p>
+        <button @click="resetLoad">resetLoad</button>
+      </div>
+      <div slot="not-load">
+        <p>Not load</p>
+        <button @click="setLoading">setLoading</button>
+      </div>
+    </lazy-comp>
     <div class="buttons">
       <button @click="changeImg">Change img</button>
       <button @click="changeImgs">Change imgs</button>
@@ -98,9 +117,9 @@
   </div>
 </template>
 <script>
-	let i = 0;
+	import { LazyComp, InViewComp, COMP_NOT_LOAD, COMP_LOADING, COMP_LOADED, COMP_ERR } from '../../src';
 
-	const LIST_LEN = 20;
+	const LIST_LEN = 5;
 	const NOT_EXISTS_MARKER = '$NOT_EXISTS$';
 
 	function genImgSrc() {
@@ -116,8 +135,14 @@
 	}
 
 	export default {
+		components: {
+			LazyComp,
+			InViewComp,
+		},
 		data() {
+			const $vm = this;
 			return {
+				lazyCompStat: COMP_NOT_LOAD,
 				lazyFilters: [
 					function (v) {
 						return v + '&_t=' + Date.now();
@@ -128,17 +153,24 @@
 						return NOT_EXISTS_MARKER + v;
 					},
 				],
-				lazyRetryFn(info) {
-					const { oSrc, next } = info;
-					next({
-						src: oSrc.replace(NOT_EXISTS_MARKER, ''),
-					});
+				inViewCompText: 'InViewComp Initialization',
+				inViewOpts: {
+					onEnter() {
+						const TXT = 'on enter view!';
+						$vm.inViewCompText = TXT;
+						console.log(TXT);
+					},
+					onLeave() {
+						const TXT = 'on leave view!';
+						$vm.inViewCompText = TXT;
+						console.log(TXT);
+					},
 				},
-				lazyOnLoad(info) {
-					console.log(`lazyOnLoad: ${info.src}`, info.el);
-				},
-				lazyOnErr(info) {
-					console.log(`lazyOnErr: ${info.src}`, info.el);
+				lazyCompOpts: {
+					onInView() {
+						console.log('in view triggered');
+					},
+					throttleMethod: 'throttle',
 				},
 				img: genImgSrc(),
 				imgs: genImgList(LIST_LEN),
@@ -147,6 +179,19 @@
 			};
 		},
 		methods: {
+			lazyRetryFn(info) {
+				const { oSrc, next } = info;
+				next({
+					src: oSrc.replace(NOT_EXISTS_MARKER, ''),
+					// failed: true,
+				});
+			},
+			lazyOnLoad(info) {
+				// console.log(`lazyOnLoad: ${info.src}`, info.el);
+			},
+			lazyOnErr(info) {
+				// console.log(`lazyOnErr: ${info.src}`, info.el);
+			},
 			changeImg() {
 				this.img = genImgSrc();
 			},
@@ -158,6 +203,18 @@
 			},
 			changeTest() {
 				this.test = !this.test;
+			},
+			setLoading() {
+				this.lazyCompStat = COMP_LOADING;
+			},
+			setLoadErr() {
+				this.lazyCompStat = COMP_ERR;
+			},
+			setLoaded() {
+				this.lazyCompStat = COMP_LOADED;
+			},
+			resetLoad() {
+				this.lazyCompStat = COMP_NOT_LOAD;
 			},
 		},
 	};
