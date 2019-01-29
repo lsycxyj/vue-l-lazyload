@@ -232,17 +232,27 @@ function defaultLoadHandler(lazyLoader) {
 	}
 }
 
+function destroyLoaderDeep(loader) {
+	const { _children } = loader;
+	if (_children.size() > 0) {
+		_children.keys(k => destroyLoaderDeep(_children.get(k)));
+	}
+	else {
+		loader.destroy();
+	}
+}
 
 export function LazyClass(scope) {
 	return class LazyLoader {
 		constructor(opts) {
+			opts = opts || {};
 			const me = this,
 				{
 					// Whether root LazyLoader or not
 					isRoot,
 				} = opts;
 
-			var {
+			let {
 				// Parent LazyLoader
 				parent,
 			} = opts;
@@ -313,6 +323,11 @@ export function LazyClass(scope) {
 			me._loadHandler = loadHandler;
 
 			parent && parent.addChild(me);
+
+			// Initialize root $lazy
+			if (isRoot && !scope.$lazy) {
+				scope.$lazy = me;
+			}
 		}
 
 		check(evName) {
@@ -495,23 +510,29 @@ export function LazyClass(scope) {
 				}
 
 				if (queue.size() === 0) {
-					const cbs = me._cbs,
-						cb = cbs[event];
+					const { _cbs, el } = me,
+						cb = _cbs[event];
 
-					cbs[event] = null;
+					_cbs[event] = null;
 
-					off(event, cb);
+					off(el, event, cb);
 				}
 			}
 		}
 
-		destroy() {
+		destroy(params) {
 			const me = this,
 				parent = me.parent;
+			const { deep } = Object.assign({ deep: false }, params);
 
 			if (!me.destroyed) {
-				if (parent) {
-					parent.rmChild(me);
+				if (!deep) {
+					if (parent) {
+						parent.rmChild(me);
+					}
+				}
+				else {
+					destroyLoaderDeep(me);
 				}
 
 				me.destroyed = true;

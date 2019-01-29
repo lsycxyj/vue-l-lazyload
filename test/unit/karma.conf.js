@@ -1,14 +1,14 @@
 // Karma configuration
 // Generated on Mon Jan 23 2017 12:00:17 GMT+0800 (中国标准时间)
 
-var path = require('path');
-var merge = require('webpack-merge');
-var baseConfig = require('../../build/webpack.base.conf');
-var webpack = require('webpack');
+const path = require('path');
+const merge = require('webpack-merge');
+const baseConfig = require('../../build/webpack.base.conf');
+const webpack = require('webpack');
 
-var projectRoot = path.resolve(__dirname, '../../');
+const projectRoot = path.resolve(__dirname, '../../');
 
-var webpackConfig = merge(baseConfig, {
+const webpackConfig = merge(baseConfig, {
 	// use inline sourcemap for karma-sourcemap-loader
 	devtool: '#inline-source-map',
 });
@@ -25,6 +25,11 @@ webpackConfig.module.rules.some((loader, i) => {
 		return true;
 	}
 });
+
+const isWatchMode = !!process.env.WATCH;
+
+// For ChromeHeadless
+process.env.CHROME_BIN = require('puppeteer').executablePath();
 
 module.exports = function (config) {
 	config.set({
@@ -92,18 +97,19 @@ module.exports = function (config) {
 
 
 		// enable / disable watching file and executing tests whenever any file changes
-		autoWatch: false,
+		autoWatch: isWatchMode,
 
 
 		// start these browsers
 		// available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
 		browsers: [
-			'PhantomJS',
+			// 'PhantomJS',
 			// This doesn't seem to work
 			// 'Firefox',
 			// Uncomment Chrome and IE for development since Travis doesn't have these browsers
 			// 'Chrome',
 			// 'IE',
+			'ChromeHeadless',
 			// Simulated events don't always work
 			// 'Edge'
 		],
@@ -111,7 +117,7 @@ module.exports = function (config) {
 
 		// Continuous Integration mode
 		// if true, Karma captures browsers, runs the tests and exits
-		singleRun: false,
+		singleRun: !isWatchMode,
 
 		// Concurrency level
 		// how many browser should be started simultaneous

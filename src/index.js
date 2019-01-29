@@ -169,7 +169,8 @@ export const VueLLazyload = {
 
 		LazyLoader = LazyClass(Vue);
 		// Set root lazy loader
-		Vue.$lazy = new LazyLoader({
+		// eslint-disable-next-line no-new
+		new LazyLoader({
 			...options,
 			isRoot: true,
 		});
