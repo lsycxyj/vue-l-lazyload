@@ -37,9 +37,9 @@ export const STAT_NOT_LOAD = 0;
 export const STAT_LOADING = 1;
 export const STAT_LOADED = 2;
 
-var loaderID = 0;
+let loaderID = 0;
 
-var supportsPassive = false;
+let supportsPassive = false;
 try {
 	const opts = Object.defineProperty({}, 'passive', {
 		get() {
@@ -235,7 +235,7 @@ function defaultLoadHandler(lazyLoader) {
 function destroyLoaderDeep(loader) {
 	const { _children } = loader;
 	if (_children.size() > 0) {
-		_children.keys(k => destroyLoaderDeep(_children.get(k)));
+		_children.keys().forEach(k => destroyLoaderDeep(_children.get(k)));
 	}
 	else {
 		loader.destroy();
@@ -245,12 +245,18 @@ function destroyLoaderDeep(loader) {
 export function LazyClass(scope) {
 	return class LazyLoader {
 		constructor(opts) {
+			const me = this;
+
+			me._setup(opts);
+		}
+
+		_setup(opts, isUpdate = false) {
+			const me = this;
 			opts = opts || {};
-			const me = this,
-				{
-					// Whether root LazyLoader or not
-					isRoot,
-				} = opts;
+			const {
+				// Whether root LazyLoader or not. There should be only one root loader.
+				isRoot,
+			} = opts;
 
 			let {
 				// Parent LazyLoader
@@ -292,8 +298,8 @@ export function LazyClass(scope) {
 				const $rootLazy = scope.$lazy;
 				opts = {
 					...(parent && parent.opts || $rootLazy.opts),
-					...opts,
 					parent: $rootLazy,
+					...opts,
 					isRoot: false,
 				};
 			}
@@ -308,13 +314,22 @@ export function LazyClass(scope) {
 			parent = opts.parent;
 
 			me.parent = parent;
-			me.id = ++loaderID;
 			me.el = el;
 			me.stat = STAT_NOT_LOAD;
-			me._children = new FMap();
-			me._queues = {};
-			// save for remove
-			me._cbs = {};
+
+			if (!isUpdate) {
+				me.id = ++loaderID;
+				me._children = new FMap();
+				me._queues = {};
+				// save for remove
+				me._cbs = {};
+			}
+			else if (parent) {
+				// Reset listeners
+				parent.rmChild(me);
+			}
+
+			// Events should be updated after original events are removed.
 			me.events = isArr(events) ? events : [events];
 			me.opts = opts;
 			me._lastInView = false;
@@ -322,7 +337,9 @@ export function LazyClass(scope) {
 			me._tTime = throttleTime;
 			me._loadHandler = loadHandler;
 
-			parent && parent.addChild(me);
+			if (parent) {
+				parent.addChild(me);
+			}
 
 			// Initialize root $lazy
 			if (isRoot && !scope.$lazy) {
@@ -478,11 +495,9 @@ export function LazyClass(scope) {
 			const me = this,
 				oOpts = me.opts;
 
-			oOpts.src = opts.src;
-
 			// reset
 			if (!oOpts.once) {
-				me.stat = STAT_NOT_LOAD;
+				me._setup(Object.assign({}, oOpts, opts), true);
 
 				me.check();
 			}
@@ -494,7 +509,7 @@ export function LazyClass(scope) {
 				children = me._children,
 				events = Object.keys(queues);
 
-			var i,
+			let i,
 				len;
 
 			if (children.has(lazyLoader.id)) {
@@ -505,9 +520,7 @@ export function LazyClass(scope) {
 				const event = events[i],
 					queue = queues[event];
 
-				if (queue.has(lazyLoader.id)) {
-					queue.rm(lazyLoader.id);
-				}
+				queue.rm(lazyLoader.id);
 
 				if (queue.size() === 0) {
 					const { _cbs, el } = me,
