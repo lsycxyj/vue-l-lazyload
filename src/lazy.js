@@ -237,20 +237,13 @@ function destroyLoaderDeep(loader) {
 	if (_children.size() > 0) {
 		_children.keys().forEach(k => destroyLoaderDeep(_children.get(k)));
 	}
-	else {
-		loader.destroy();
-	}
+	// If it's a leaf node, destroy it directly; If it's not, destroy itself after its children is destroyed.
+	loader.destroy();
 }
 
 export function LazyClass(scope) {
 	return class LazyLoader {
 		constructor(opts) {
-			const me = this;
-
-			me._setup(opts);
-		}
-
-		_setup(opts, isUpdate = false) {
 			const me = this;
 			opts = opts || {};
 			const {
@@ -313,22 +306,15 @@ export function LazyClass(scope) {
 			} = opts;
 			parent = opts.parent;
 
+			me.id = ++loaderID;
+			me._children = new FMap();
+			me._queues = {};
+			// save for remove
+			me._cbs = {};
+
 			me.parent = parent;
 			me.el = el;
 			me.stat = STAT_NOT_LOAD;
-
-			if (!isUpdate) {
-				me.id = ++loaderID;
-				me._children = new FMap();
-				me._queues = {};
-				// save for remove
-				me._cbs = {};
-			}
-			else if (parent) {
-				// Reset listeners
-				parent.rmChild(me);
-			}
-
 			// Events should be updated after original events are removed.
 			me.events = isArr(events) ? events : [events];
 			me.opts = opts;
@@ -362,7 +348,7 @@ export function LazyClass(scope) {
 
 					if (queue) {
 						children.keys().forEach((k) => {
-							children.get(k).check();
+							children.get(k).check(evName);
 						});
 					}
 				}
@@ -371,7 +357,7 @@ export function LazyClass(scope) {
 
 		inView() {
 			const me = this,
-				{ parent, opts } = me,
+				{ parent, opts, el } = me,
 				{ onEnter, onLeave } = opts;
 
 			let result = false;
@@ -414,14 +400,14 @@ export function LazyClass(scope) {
 					}
 
 					const preloadRatio = me.opts.preloadRatio,
-						extraPreloadRatio = 1 - preloadRatio,
-						elOffset = offset(me.el),
+						extraPreloadRatio = preloadRatio - 1,
+						elOffset = offset(el),
 						parentElExtraWidth = (parentElWidth + parentElWidthSupplement) * extraPreloadRatio,
 						parentElExtraHeight = (parentElHeight + parentElHeightSupplement) * extraPreloadRatio,
-						parentElFixedTop = parentElTop + parentElTopSupplement - parentElExtraHeight / 2,
-						parentElFixedLeft = parentElLeft + parentElLeftSupplement - parentElExtraWidth / 2,
-						parentElFixedWidth = parentElWidth + parentElExtraWidth,
-						parentElFixedHeight = parentElHeight + parentElExtraHeight,
+						parentElFixedTop = parentElTop - parentElTopSupplement - parentElExtraHeight / 2,
+						parentElFixedLeft = parentElLeft - parentElLeftSupplement - parentElExtraWidth / 2,
+						parentElFixedWidth = parentElWidth + parentElWidthSupplement + parentElExtraWidth,
+						parentElFixedHeight = parentElHeight + parentElHeightSupplement + parentElExtraHeight,
 						elLeft = elOffset.left,
 						elTop = elOffset.top,
 						elWidth = elOffset.width,
@@ -438,6 +424,9 @@ export function LazyClass(scope) {
 						result = true;
 					}
 				}
+			} else if (el === win) {
+				// window element is always in view
+				result = true;
 			}
 
 			const { _lastInView } = me;
@@ -466,7 +455,7 @@ export function LazyClass(scope) {
 				if (!cb) {
 					cb = cbs[event] = me._throttle(() => {
 						queue.keys().forEach((k) => {
-							queue.get(k).check();
+							queue.get(k).check(event);
 						});
 					}, me._tTime);
 
@@ -497,9 +486,18 @@ export function LazyClass(scope) {
 
 			// reset
 			if (!oOpts.once) {
-				me._setup(Object.assign({}, oOpts, opts), true);
+				const nSrc = opts.src;
+				const oSrc = oOpts.src;
 
-				me.check();
+				// Only src can be updated. Otherwise we'll face many complicated update problems.
+				if (nSrc !== oSrc) {
+					oOpts.src = nSrc;
+
+					// Reset the stat to load
+					me.stat = STAT_NOT_LOAD;
+
+					me.check();
+				}
 			}
 		}
 
@@ -542,6 +540,9 @@ export function LazyClass(scope) {
 				if (!deep) {
 					if (parent) {
 						parent.rmChild(me);
+					}
+					else if (me.isRoot) {
+						delete scope.$lazy;
 					}
 				}
 				else {

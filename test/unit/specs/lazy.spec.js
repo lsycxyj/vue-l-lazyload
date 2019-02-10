@@ -1,19 +1,43 @@
 import $ from 'jquery';
 import Vue from 'vue';
-import { LazyClass } from '../../../src/lazy';
+import { LazyClass, __RewireAPI__ as LazyRewireAPI, STAT_NOT_LOAD } from '../../../src/lazy';
 // import { cssTextToObject, createVM, destroyVM, genImgSrc, genImgList } from '../util';
 import chai from 'chai';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import noop from 'lodash/noop';
+import debounce from 'lodash/debounce';
 // import spies from 'chai-spies';
 // chai.use(spies);
 
 chai.use(sinonChai);
 const { expect } = chai;
 
-const EV_SCROLL = 'scroll';
+const EV_SCROLL = 'scroll',
+	EV_TRANSFORM = 'transform',
+
+	CLASS_LOADING = 'lazy-loading',
+	CLASS_ERR = 'lazy-err',
+	CLASS_LOADED = 'lazy-loaded',
+
+	CLASS_TARGET_SELF = 'self',
+	CLASS_TARGET_PARENT = 'parent',
+
+	// THROTTLE_METHOD_THROTTLE = 'throttle',
+	THROTTLE_METHOD_DEBOUNCE = 'debounce',
+
+	MODE_BG = 'bg',
+	win = window;
+
+const LAZY_EL_SIZE = 100;
+let WIN_HEIGHT = 0;
+let WIN_WIDTH = 0;
+let WIN_HALF_HEIGHT = 0;
+let WIN_HALF_WIDTH = 0;
+const $win = $(window);
+
 const $body = $('body');
+const $html = $('html');
 let $div;
 let div;
 let scope;
@@ -35,7 +59,56 @@ function destroyRootLazy() {
 	delete scope.$lazy;
 }
 
+function cleanWrapper() {
+	$body.css({
+		overflow: '',
+	});
+	$html.css({
+		overflow: '',
+	});
+	if ($div) {
+		$div.remove();
+		$div = null;
+	}
+	window.scrollTo(0, 0);
+}
+
+function setupWrapper() {
+	cleanWrapper();
+	$body.css({
+		overflow: 'auto',
+	});
+	$html.css({
+		overflow: 'auto',
+	});
+	$div = $('<div></div>');
+	$body.append($div);
+	div = $div[0];
+}
+
+function createLazyEl() {
+	return $('<div></div>').css({
+		width: LAZY_EL_SIZE,
+		height: LAZY_EL_SIZE,
+	});
+}
+
+function createParentLazyEl({ css } = {}) {
+	return $('<div></div>').css({
+		width: WIN_WIDTH,
+		height: WIN_HEIGHT,
+		overflow: 'auto',
+		...css,
+	});
+}
+
+
 before(() => {
+	WIN_HEIGHT = $win.innerHeight();
+	WIN_WIDTH = $win.innerWidth();
+	WIN_HALF_HEIGHT = WIN_HEIGHT / 2;
+	WIN_HALF_WIDTH /= 2;
+
 	$body.css({
 		margin: 0,
 		padding: 0,
@@ -43,18 +116,18 @@ before(() => {
 });
 
 beforeEach(() => {
-	$div = $('<div></div>');
-	$body.append($div);
-	div = $div[0];
+	setupWrapper();
 });
 
 afterEach(() => {
-	$div.remove();
-	$div = null;
-	window.scrollTo(0, 0);
+	cleanWrapper();
 });
 
 describe('LazyClass', () => {
+	const optsNoopLoadHandler = {
+		loadHandler: noop,
+	};
+
 	before(() => {
 		setupLazyLoader();
 	});
@@ -199,23 +272,881 @@ describe('LazyClass', () => {
 		});
 	});
 
-	describe('noop loadHandler', () => {
-		const optsNoopLoadHandler = {
-			loadHandler: noop,
-		};
-
-		describe('', () => {
-			beforeEach(() => {
-				setupDefaultRootLazy(optsNoopLoadHandler);
-			});
-
+	describe('Noop loadHandler', () => {
+		describe('Class methods', () => {
 			afterEach(() => {
 				destroyRootLazy();
 			});
 
-			it('_setup', () => {
+			it('constructor of root loader', () => {
+				// Creation
+				$rootLazy = new LazyLoader({ isRoot: true });
+
+				expect($rootLazy.id).to.be.equal(LazyRewireAPI.__get__('loaderID'));
+				expect($rootLazy.el).to.be.equal(win);
+				expect($rootLazy.parent).to.be.equal(undefined);
+				expect($rootLazy.opts).to.be.a('object');
+				expect($rootLazy.opts.isRoot).to.be.equal(true);
+				expect($rootLazy.stat).to.be.equal(STAT_NOT_LOAD);
+				expect($rootLazy.events).to.deep.equal([EV_SCROLL]);
+				expect($rootLazy._lastInView).to.be.equal(false);
+				expect($rootLazy._throttle).to.be.equal(debounce);
+				expect($rootLazy._tTime).to.be.equal(250);
+				expect($rootLazy._loadHandler).to.be.equal(LazyRewireAPI.__get__('defaultLoadHandler'));
+				expect(scope.$lazy).to.be.equal($rootLazy);
+			});
+
+			it('constructor of non-root loader', () => {
+				// Init root loader
+				setupDefaultRootLazy(optsNoopLoadHandler);
+
+				const rootLazyOpts = $rootLazy.opts;
+
+				// Creation
+				const el = $('<div></div>')[0];
+				const childOpts = {
+					el,
+					throttleTime: 100,
+				};
+				const expectedOpts = {
+					...rootLazyOpts,
+					...childOpts,
+					parent: $rootLazy,
+					loadHandler: noop,
+					isRoot: false,
+				};
+				const childLoader = new LazyLoader(childOpts);
+
+				expect(childLoader.id).to.be.equal(LazyRewireAPI.__get__('loaderID'));
+				expect(childLoader.el).to.be.equal(el);
+				expect(childLoader.parent).to.be.equal($rootLazy);
+				Object.keys(childLoader.opts).forEach((k) => {
+					expect(childLoader.opts[k], `Expect option equal: ${k}`).to.eql(expectedOpts[k]);
+				});
+				expect(childLoader.stat).to.be.equal(STAT_NOT_LOAD);
+				expect(childLoader.events).to.deep.equal([EV_SCROLL]);
+				expect(childLoader._lastInView).to.be.equal(false);
+				expect(childLoader._throttle).to.be.equal(debounce);
+				expect(childLoader._tTime).to.be.equal(100);
+				expect(childLoader._loadHandler).to.be.equal(noop);
+			});
+
+			// NOTE: Horizontal scroll of window doesn't work in Karma
+			describe('inView', () => {
+				let WIN_QUARTER_HEIGHT = 0;
+				let WIN_QUARTER_WIDTH = 0;
+				let $spacerOfWinHeight0 = null;
+				let $spacerOfWinHeight1 = null;
+				let $spacerOfHalfWinHeight0 = null;
+				let $spacerOfHalfWinHeight1 = null;
+				let $spacerOfWinWidth0 = null;
+				let $spacerOfWinWidth1 = null;
+
+				beforeEach(() => {
+					setupDefaultRootLazy(optsNoopLoadHandler);
+
+					WIN_QUARTER_HEIGHT = WIN_HEIGHT / 4;
+					WIN_QUARTER_WIDTH = WIN_WIDTH / 4;
+					$spacerOfWinHeight0 = $('<div></div>').css({
+						width: 1,
+						height: WIN_HEIGHT,
+						background: 'red',
+					});
+					$spacerOfWinHeight1 = $('<div></div>').css({
+						width: 1,
+						height: WIN_HEIGHT,
+						background: 'green',
+					});
+					$spacerOfHalfWinHeight0 = $('<div></div>').css({
+						width: 1,
+						height: WIN_HALF_HEIGHT,
+						background: 'blue',
+					});
+					$spacerOfHalfWinHeight1 = $('<div></div>').css({
+						width: 1,
+						height: WIN_HALF_HEIGHT,
+						background: 'orange',
+					});
+					$spacerOfWinWidth0 = $('<div></div>').css({
+						width: WIN_WIDTH,
+						height: 1,
+						background: 'red',
+					});
+					$spacerOfWinWidth1 = $('<div></div>').css({
+						width: WIN_WIDTH,
+						height: 1,
+						background: 'green',
+					});
+
+					setupWrapper();
+				});
+
+				afterEach(() => {
+					destroyRootLazy();
+
+					WIN_QUARTER_HEIGHT = 0;
+					WIN_QUARTER_WIDTH = 0;
+					$spacerOfWinHeight0 = null;
+					$spacerOfWinHeight1 = null;
+					$spacerOfWinWidth0 = null;
+					$spacerOfWinWidth1 = null;
+					$spacerOfHalfWinHeight0 = null;
+					$spacerOfHalfWinHeight1 = null;
+
+					cleanWrapper();
+				});
+
+				it('Initially in viewport vertically with default preloadRatio', () => {
+					const $lazyEl0 = createLazyEl();
+					$div.append($lazyEl0);
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+					});
+					expect(lazy0.inView()).to.be.equal(true);
+				});
+
+				it('Initially out of viewport vertically with default preloadRatio below the viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					$div.append($spacerOfWinHeight0);
+					$div.append($lazyEl0);
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+					});
+					expect(lazy0.inView()).to.be.equal(false);
+
+					window.scrollTo(0, 1);
+
+					expect(lazy0.inView()).to.be.equal(true);
+				});
+
+				it('Initially out of viewport vertically with default preloadRatio above the viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div.append($lazyEl0);
+					$div.append($spacerOfWinHeight0);
+
+					window.scrollTo(0, LAZY_EL_SIZE);
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+					});
+					expect(lazy0.inView()).to.be.equal(false);
+
+					window.scrollTo(0, LAZY_EL_SIZE - 1);
+
+					expect(lazy0.inView()).to.be.equal(true);
+				});
+
+				it('Initially out of viewport vertically with specified preloadRatio > 1 below the viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					$div.append($spacerOfWinHeight0);
+					$div.append($spacerOfWinHeight1);
+					$div.append($lazyEl0);
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+						preloadRatio: 3,
+					});
+
+					let isInView = lazy0.inView();
+
+					expect(isInView).to.be.equal(false);
+
+					window.scrollTo(0, 1);
+
+					isInView = lazy0.inView();
+
+					expect(isInView).to.be.equal(true);
+				});
+
+				// preloadRatio should larger or equal to 1
+
+				it('Initially in parent element viewport vertically with default preloadRatio with parent element all in viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div.append($lazyParent0);
+					$lazyParent0.append($lazyEl0);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					const isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially below parent element viewport vertically with default preloadRatio with parent element all in viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div.append($lazyParent0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($lazyEl0);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially below parent element viewport vertically with default preloadRatio with parent element half in the lower part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($spacerOfHalfWinHeight0)
+						.append($lazyParent0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($lazyEl0)
+						.append($spacerOfWinHeight1);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, WIN_HALF_HEIGHT);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, WIN_HALF_HEIGHT + 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially above parent element viewport vertically with default preloadRatio with parent element half in the lower part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($spacerOfHalfWinHeight0)
+						.append($lazyParent0);
+					$lazyParent0
+						.append($lazyEl0)
+						.append($spacerOfWinHeight0);
+
+					$lazyParent0[0].scrollTo(0, LAZY_EL_SIZE);
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, LAZY_EL_SIZE - 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially below parent element viewport vertically with default preloadRatio with parent element half in the upper part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($lazyParent0)
+						.append($spacerOfHalfWinHeight0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($lazyEl0);
+
+					window.scrollTo(0, WIN_HALF_HEIGHT);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially above parent element viewport vertically with default preloadRatio with parent element half in the upper part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($lazyParent0)
+						.append($spacerOfHalfWinHeight0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($lazyEl0)
+						.append($spacerOfWinHeight1);
+
+					window.scrollTo(0, WIN_HALF_HEIGHT);
+					$lazyParent0[0].scrollTo(0, WIN_HALF_HEIGHT + LAZY_EL_SIZE);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, WIN_HALF_HEIGHT + LAZY_EL_SIZE - 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially below parent element viewport vertically with preloadRatio > 1 with parent element all in viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div.append($lazyParent0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($spacerOfWinHeight1)
+						.append($lazyEl0);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+						preloadRatio: 3,
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially below parent element viewport vertically with preloadRatio > 1 with parent element half in the lower part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($spacerOfHalfWinHeight0)
+						.append($lazyParent0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($lazyEl0)
+						.append($spacerOfWinHeight1);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+						preloadRatio: 3,
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially above parent element viewport vertically with preloadRatio > 1 with parent element half in the lower part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($spacerOfHalfWinHeight0)
+						.append($lazyParent0);
+					$lazyParent0
+						.append($lazyEl0)
+						.append($spacerOfWinHeight0)
+						.append($spacerOfWinHeight1);
+
+					$lazyParent0[0].scrollTo(0, WIN_HALF_HEIGHT + LAZY_EL_SIZE);
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+						preloadRatio: 3,
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, WIN_HALF_HEIGHT + LAZY_EL_SIZE - 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially below parent element viewport vertically with preloadRatio > 1 with parent element half in the upper part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($lazyParent0)
+						.append($spacerOfHalfWinHeight0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($spacerOfHalfWinHeight1)
+						.append($lazyEl0);
+
+					window.scrollTo(0, WIN_HALF_HEIGHT);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+						preloadRatio: 3,
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+
+				it('Initially above parent element viewport vertically with preloadRatio > 1 with parent element half in the upper part of viewport', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div
+						.append($lazyParent0)
+						.append($spacerOfHalfWinHeight0);
+					$lazyParent0
+						.append($spacerOfWinHeight0)
+						.append($lazyEl0)
+						.append($spacerOfWinHeight1);
+
+					window.scrollTo(0, WIN_HALF_HEIGHT);
+					$lazyParent0[0].scrollTo(0, WIN_HEIGHT + LAZY_EL_SIZE);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						parent: lazyParent0,
+						el: $lazyEl0[0],
+						preloadRatio: 3,
+					});
+
+					const isInViewParent = lazyParent0.inView();
+					let isInView = lazy0.inView();
+
+					expect(isInViewParent).to.be.equal(true);
+					expect(isInView).to.be.equal(false);
+
+					$lazyParent0[0].scrollTo(0, WIN_HEIGHT + LAZY_EL_SIZE - 1);
+					isInView = lazy0.inView();
+					expect(isInView).to.be.equal(true);
+				});
+			});
+
+			describe('check', () => {
+				it('Parent is rootLazy', () => {
+					setupDefaultRootLazy(optsNoopLoadHandler);
+					setupWrapper();
+
+					const $lazyEl0 = createLazyEl();
+					const $lazyEl1 = createLazyEl();
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+					});
+					const lazy1 = new LazyLoader({
+						el: $lazyEl1[0],
+					});
+
+					const spiedLazy0Check = sinon.spy(lazy0, 'check');
+					const spiedLazy1Check = sinon.spy(lazy1, 'check');
+
+					$rootLazy.check();
+
+					expect(spiedLazy0Check).to.have.been.callCount(1);
+					expect(spiedLazy1Check).to.have.been.callCount(1);
+
+					cleanWrapper();
+					destroyRootLazy();
+				});
+
+				describe('3 levels of lazy loader with more than 1 type of event', () => {
+					let $spacerOfWinHeight0 = null;
+
+					beforeEach(() => {
+						setupDefaultRootLazy(optsNoopLoadHandler);
+						$spacerOfWinHeight0 = $('<div></div>').css({
+							width: 1,
+							height: WIN_HEIGHT,
+							background: 'red',
+						});
+						setupWrapper();
+					});
+
+					afterEach(() => {
+						cleanWrapper();
+						$spacerOfWinHeight0 = null;
+						destroyRootLazy();
+					});
+
+					it('Parent not in view', () => {
+						const $lazyEl0 = createLazyEl();
+						const $lazyEl1 = createLazyEl();
+						const $lazyParent0 = createParentLazyEl();
+						const $lazyParent1 = createParentLazyEl();
+						$div.append($spacerOfWinHeight0)
+							.append($lazyParent0)
+							.append($lazyParent1);
+						$lazyParent0.append($lazyEl0)
+							.append($lazyEl1);
+
+						const lazyParent0 = new LazyLoader({
+							el: $lazyParent0[0],
+						});
+						const lazyParent1 = new LazyLoader({
+							el: $lazyParent1[0],
+						});
+						const lazy0 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl0[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+						const lazy1 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl1[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+
+						const spiedLazy0Check = sinon.spy(lazy0, 'check');
+						const spiedLazy1Check = sinon.spy(lazy1, 'check');
+						const spiedLazyParent0Check = sinon.spy(lazyParent0, 'check');
+						const spiedLazyParent1Check = sinon.spy(lazyParent1, 'check');
+
+						lazyParent0.check();
+
+						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(undefined);
+
+						expect(spiedLazy0Check).to.have.been.callCount(0);
+						expect(spiedLazy1Check).to.have.been.callCount(0);
+						expect(spiedLazyParent0Check).to.have.been.callCount(1);
+						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+
+						$rootLazy.check();
+
+						expect(spiedLazy0Check).to.have.been.callCount(0);
+						expect(spiedLazy1Check).to.have.been.callCount(0);
+						expect(spiedLazyParent0Check).to.have.been.callCount(2);
+						expect(spiedLazyParent1Check).to.have.been.callCount(1);
+
+						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(undefined);
+						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(undefined);
+					});
+
+					it('All in view', () => {
+						const $lazyEl0 = createLazyEl();
+						const $lazyEl1 = createLazyEl();
+						const $lazyParent0 = createParentLazyEl({
+							css: {
+								height: WIN_HALF_HEIGHT,
+							},
+						});
+						const $lazyParent1 = createParentLazyEl({
+							css: {
+								height: WIN_HALF_HEIGHT,
+							},
+						});
+						$div
+							.append($lazyParent0)
+							.append($lazyParent1);
+						$lazyParent0.append($lazyEl0)
+							.append($lazyEl1);
+
+						const lazyParent0 = new LazyLoader({
+							el: $lazyParent0[0],
+						});
+						const lazyParent1 = new LazyLoader({
+							el: $lazyParent1[0],
+						});
+						const lazy0 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl0[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+						const lazy1 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl1[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+
+						const spiedLazy0Check = sinon.spy(lazy0, 'check');
+						const spiedLazy1Check = sinon.spy(lazy1, 'check');
+						const spiedLazyParent0Check = sinon.spy(lazyParent0, 'check');
+						const spiedLazyParent1Check = sinon.spy(lazyParent1, 'check');
+
+						lazyParent0.check();
+
+						expect(spiedLazy0Check).to.have.been.callCount(1);
+						expect(spiedLazy1Check).to.have.been.callCount(1);
+						expect(spiedLazyParent0Check).to.have.been.callCount(1);
+						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+
+						expect(spiedLazy0Check.getCall(0).args[0]).to.be.equal(undefined);
+						expect(spiedLazy1Check.getCall(0).args[0]).to.be.equal(undefined);
+						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(undefined);
+
+						$rootLazy.check();
+
+						expect(spiedLazy0Check).to.have.been.callCount(2);
+						expect(spiedLazy1Check).to.have.been.callCount(2);
+						expect(spiedLazyParent0Check).to.have.been.callCount(2);
+						expect(spiedLazyParent1Check).to.have.been.callCount(1);
+
+						expect(spiedLazy0Check.getCall(1).args[0]).to.be.equal(undefined);
+						expect(spiedLazy1Check.getCall(1).args[0]).to.be.equal(undefined);
+						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(undefined);
+						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(undefined);
+					});
+				});
+
+				describe('Only check certain type of event', () => {
+					let $spacerOfWinHeight0 = null;
+
+					beforeEach(() => {
+						setupDefaultRootLazy(optsNoopLoadHandler);
+						$spacerOfWinHeight0 = $('<div></div>').css({
+							width: 1,
+							height: WIN_HEIGHT,
+							background: 'red',
+						});
+						setupWrapper();
+					});
+
+					afterEach(() => {
+						cleanWrapper();
+						$spacerOfWinHeight0 = null;
+						destroyRootLazy();
+					});
+
+					it('Parent not in view', () => {
+						const $lazyEl0 = createLazyEl();
+						const $lazyEl1 = createLazyEl();
+						const $lazyParent0 = createParentLazyEl();
+						const $lazyParent1 = createParentLazyEl();
+						$div.append($spacerOfWinHeight0)
+							.append($lazyParent0)
+							.append($lazyParent1);
+						$lazyParent0.append($lazyEl0)
+							.append($lazyEl1);
+
+						const lazyParent0 = new LazyLoader({
+							el: $lazyParent0[0],
+						});
+						const lazyParent1 = new LazyLoader({
+							el: $lazyParent1[0],
+						});
+						const lazy0 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl0[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+						const lazy1 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl1[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+
+						const spiedLazy0Check = sinon.spy(lazy0, 'check');
+						const spiedLazy1Check = sinon.spy(lazy1, 'check');
+						const spiedLazyParent0Check = sinon.spy(lazyParent0, 'check');
+						const spiedLazyParent1Check = sinon.spy(lazyParent1, 'check');
+
+						lazyParent0.check(EV_SCROLL);
+
+						expect(spiedLazy0Check).to.have.been.callCount(0);
+						expect(spiedLazy1Check).to.have.been.callCount(0);
+						expect(spiedLazyParent0Check).to.have.been.callCount(1);
+						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+
+						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+
+						$rootLazy.check(EV_SCROLL);
+
+						expect(spiedLazy0Check).to.have.been.callCount(0);
+						expect(spiedLazy1Check).to.have.been.callCount(0);
+						expect(spiedLazyParent0Check).to.have.been.callCount(2);
+						expect(spiedLazyParent1Check).to.have.been.callCount(1);
+
+						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
+						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+					});
+
+					it('All in view', () => {
+						const $lazyEl0 = createLazyEl();
+						const $lazyEl1 = createLazyEl();
+						const $lazyParent0 = createParentLazyEl({
+							css: {
+								height: WIN_HALF_HEIGHT,
+							},
+						});
+						const $lazyParent1 = createParentLazyEl({
+							css: {
+								height: WIN_HALF_HEIGHT,
+							},
+						});
+						$div
+							.append($lazyParent0)
+							.append($lazyParent1);
+						$lazyParent0.append($lazyEl0)
+							.append($lazyEl1);
+
+						const lazyParent0 = new LazyLoader({
+							el: $lazyParent0[0],
+						});
+						const lazyParent1 = new LazyLoader({
+							el: $lazyParent1[0],
+						});
+						const lazy0 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl0[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+						const lazy1 = new LazyLoader({
+							parent: lazyParent0,
+							el: $lazyEl1[0],
+							events: [EV_SCROLL, EV_TRANSFORM],
+						});
+
+						const spiedLazy0Check = sinon.spy(lazy0, 'check');
+						const spiedLazy1Check = sinon.spy(lazy1, 'check');
+						const spiedLazyParent0Check = sinon.spy(lazyParent0, 'check');
+						const spiedLazyParent1Check = sinon.spy(lazyParent1, 'check');
+
+						lazyParent0.check(EV_SCROLL);
+
+						expect(spiedLazy0Check).to.have.been.callCount(1);
+						expect(spiedLazy1Check).to.have.been.callCount(1);
+						expect(spiedLazyParent0Check).to.have.been.callCount(1);
+						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+
+						expect(spiedLazy0Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+						expect(spiedLazy1Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+
+						$rootLazy.check(EV_SCROLL);
+
+						expect(spiedLazy0Check).to.have.been.callCount(2);
+						expect(spiedLazy1Check).to.have.been.callCount(2);
+						expect(spiedLazyParent0Check).to.have.been.callCount(2);
+						expect(spiedLazyParent1Check).to.have.been.callCount(1);
+
+						expect(spiedLazy0Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
+						expect(spiedLazy1Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
+						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
+						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+					});
+				});
+			});
+
+			describe('addChild', () => {
+			});
+
+			describe('rmChild', () => {
+			});
+
+			describe('update', () => {
 			});
 		});
+	});
+
+	describe('option loadHandler', () => {
+		it('scroll event tests', () => {
+		});
+	});
+});
+
+describe('defaultLoadHandler', () => {
+	describe('switching classes', () => {
+		it('default class target', () => {
+		});
+
+		it('class target parent', () => {
+		});
+	});
+});
+
+describe('Req', () => {
+	it('retry of number', () => {
+	});
+
+	it('retry of function', () => {
+	});
+
+	it('onLoad', () => {
+	});
+
+	it('onErr', () => {
+	});
+
+	it('onReq', () => {
+	});
+
+	it('filters', () => {
 	});
 });
 // describe('Suite: test vue-l-lazyload', () => {
