@@ -800,6 +800,7 @@ describe('LazyClass', () => {
 			});
 
 			describe('check', () => {
+				// TODO cbs spies and loadHandler should be called
 				it('Parent is rootLazy', () => {
 					setupDefaultRootLazy(optsNoopLoadHandler);
 					setupWrapper();
@@ -1189,40 +1190,40 @@ describe('LazyClass', () => {
 					expect(spiedRemoveEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
 					expect(spiedRemoveEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
 				});
-			});
 
-			it('non-root parent rmChild', () => {
-				const $lazyEl0 = createLazyEl();
-				const $lazyParent0 = createParentLazyEl();
-				$div.append($lazyParent0);
-				$lazyParent0.append($lazyEl0);
+				it('non-root parent rmChild', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div.append($lazyParent0);
+					$lazyParent0.append($lazyEl0);
 
-				// const lazyParent0 = new LazyLoader({
-				// 	el: $lazyParent0[0],
-				// });
-				// const lazy0 = new LazyLoader({
-				// 	el: $lazyEl0[0],
-				// 	events: [EV_SCROLL, EV_TRANSFORM],
-				// });
-				// remove default parent
-				// $rootLazy.rmChild(lazy0);
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+						events: [EV_SCROLL, EV_TRANSFORM],
+					});
+					// remove default parent
+					$rootLazy.rmChild(lazy0);
 
-				// lazyParent0.addChild(lazy0);
-				// expect(lazyParent0._children.size()).to.be.equal(1);
-				// expect(lazyParent0._queues[EV_SCROLL].get(lazy0.id)).to.be.equal(lazy0);
-				// expect(lazyParent0._queues[EV_TRANSFORM].get(lazy0.id)).to.be.equal(lazy0);
+					lazyParent0.addChild(lazy0);
+					expect(lazyParent0._children.size()).to.be.equal(1);
+					expect(lazyParent0._queues[EV_SCROLL].get(lazy0.id)).to.be.equal(lazy0);
+					expect(lazyParent0._queues[EV_TRANSFORM].get(lazy0.id)).to.be.equal(lazy0);
 
-				// const spiedRemoveEventListener = sinon.spy($lazyParent0[0], 'removeEventListener');
-				// lazyParent0.rmChild(lazy0);
-				// expect(spiedRemoveEventListener).to.have.been.callCount(2);
-				// expect(spiedRemoveEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
-				// expect(spiedRemoveEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
+					const spiedRemoveEventListener = sinon.spy($lazyParent0[0], 'removeEventListener');
+					lazyParent0.rmChild(lazy0);
+					expect(spiedRemoveEventListener).to.have.been.callCount(2);
+					expect(spiedRemoveEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
+					expect(spiedRemoveEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
+				});
 			});
 		});
 	});
 
 	describe('option loadHandler', () => {
-		it('scroll event tests', () => {
+		it('scroll event and loadHandler should be called', () => {
 		});
 	});
 });
