@@ -1103,13 +1103,120 @@ describe('LazyClass', () => {
 				});
 			});
 
-			describe('addChild', () => {
+			describe('addChild rmChild', () => {
+				beforeEach(() => {
+					setupDefaultRootLazy(optsNoopLoadHandler);
+					setupWrapper();
+				});
+
+				afterEach(() => {
+					cleanWrapper();
+					destroyRootLazy();
+				});
+
+				it('root parent addChild', () => {
+					const $lazyEl0 = createLazyEl();
+					$div.append($lazyEl0);
+
+					expect($rootLazy._children.size()).to.be.equal(0);
+					expect($rootLazy._queues[EV_SCROLL]).to.be.equal(undefined);
+					expect($rootLazy._queues[EV_TRANSFORM]).to.be.equal(undefined);
+
+					const spiedAddEventListener = sinon.spy(window, 'addEventListener');
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+						events: [EV_SCROLL, EV_TRANSFORM],
+					});
+
+					expect($rootLazy._children.size()).to.be.equal(1);
+					expect($rootLazy._queues[EV_SCROLL].get(lazy0.id)).to.be.equal(lazy0);
+					expect($rootLazy._queues[EV_TRANSFORM].get(lazy0.id)).to.be.equal(lazy0);
+					expect(spiedAddEventListener).to.have.been.callCount(2);
+					expect(spiedAddEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
+					expect(spiedAddEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
+				});
+
+				it('non-root parent addChild', () => {
+					const $lazyEl0 = createLazyEl();
+					const $lazyParent0 = createParentLazyEl();
+					$div.append($lazyParent0);
+					$lazyParent0.append($lazyEl0);
+
+					const lazyParent0 = new LazyLoader({
+						el: $lazyParent0[0],
+					});
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+						events: [EV_SCROLL, EV_TRANSFORM],
+					});
+					// remove default parent
+					$rootLazy.rmChild(lazy0);
+
+					expect(lazyParent0._children.size()).to.be.equal(0);
+					expect(lazyParent0._queues[EV_SCROLL]).to.be.equal(undefined);
+					expect(lazyParent0._queues[EV_TRANSFORM]).to.be.equal(undefined);
+
+					const spiedAddEventListener = sinon.spy($lazyParent0[0], 'addEventListener');
+
+					lazyParent0.addChild(lazy0);
+					expect(lazyParent0._children.size()).to.be.equal(1);
+					expect(lazyParent0._queues[EV_SCROLL].get(lazy0.id)).to.be.equal(lazy0);
+					expect(lazyParent0._queues[EV_TRANSFORM].get(lazy0.id)).to.be.equal(lazy0);
+					expect(spiedAddEventListener).to.have.been.callCount(2);
+					expect(spiedAddEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
+					expect(spiedAddEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
+				});
+
+				it('root parent rmChild', () => {
+					const $lazyEl0 = createLazyEl();
+					$div.append($lazyEl0);
+
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+						events: [EV_SCROLL, EV_TRANSFORM],
+					});
+
+					const spiedRemoveEventListener = sinon.spy(window, 'removeEventListener');
+
+					expect($rootLazy._children.size()).to.be.equal(1);
+					expect($rootLazy._queues[EV_SCROLL].get(lazy0.id)).to.be.equal(lazy0);
+					expect($rootLazy._queues[EV_TRANSFORM].get(lazy0.id)).to.be.equal(lazy0);
+
+					$rootLazy.rmChild(lazy0);
+
+					expect(spiedRemoveEventListener).to.have.been.callCount(2);
+					expect(spiedRemoveEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
+					expect(spiedRemoveEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
+				});
 			});
 
-			describe('rmChild', () => {
-			});
+			it('non-root parent rmChild', () => {
+				const $lazyEl0 = createLazyEl();
+				const $lazyParent0 = createParentLazyEl();
+				$div.append($lazyParent0);
+				$lazyParent0.append($lazyEl0);
 
-			describe('update', () => {
+				// const lazyParent0 = new LazyLoader({
+				// 	el: $lazyParent0[0],
+				// });
+				// const lazy0 = new LazyLoader({
+				// 	el: $lazyEl0[0],
+				// 	events: [EV_SCROLL, EV_TRANSFORM],
+				// });
+				// remove default parent
+				// $rootLazy.rmChild(lazy0);
+
+				// lazyParent0.addChild(lazy0);
+				// expect(lazyParent0._children.size()).to.be.equal(1);
+				// expect(lazyParent0._queues[EV_SCROLL].get(lazy0.id)).to.be.equal(lazy0);
+				// expect(lazyParent0._queues[EV_TRANSFORM].get(lazy0.id)).to.be.equal(lazy0);
+
+				// const spiedRemoveEventListener = sinon.spy($lazyParent0[0], 'removeEventListener');
+				// lazyParent0.rmChild(lazy0);
+				// expect(spiedRemoveEventListener).to.have.been.callCount(2);
+				// expect(spiedRemoveEventListener.getCall(0).args[0]).to.have.been.equal(EV_SCROLL);
+				// expect(spiedRemoveEventListener.getCall(1).args[0]).to.have.been.equal(EV_TRANSFORM);
 			});
 		});
 	});
