@@ -194,11 +194,8 @@ function defaultLoadHandler(lazyLoader) {
 		default:// empty
 	}
 
-	if (!src) {
-		lazyLoader.stat = STAT_LOADED;
-		switchClass(elClassTarget, classLoaded);
-	}
-	else {
+	// Only classes and status of elements which has src should be changed
+	if (src) {
 		lazyLoader.stat = STAT_LOADING;
 
 		lazyLoader.req = new Req({
@@ -348,7 +345,8 @@ export function LazyClass(scope) {
 
 					if (queue) {
 						children.keys().forEach((k) => {
-							children.get(k).check(evName);
+							children.get(k)
+								.check(evName);
 						});
 					}
 				}

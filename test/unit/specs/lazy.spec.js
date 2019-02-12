@@ -7,6 +7,7 @@ import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import noop from 'lodash/noop';
 import debounce from 'lodash/debounce';
+import Bluebird from 'bluebird';
 // import spies from 'chai-spies';
 // chai.use(spies);
 
@@ -800,13 +801,30 @@ describe('LazyClass', () => {
 			});
 
 			describe('check', () => {
-				// TODO cbs spies and loadHandler should be called
+				let spiedLoadHandler = null;
+
+				function makeOptsCheck(opts) {
+					spiedLoadHandler = sinon.spy(noop);
+					return {
+						opts: {
+							throttleTime: 1,
+							loadHandler: spiedLoadHandler,
+							...opts,
+						},
+						spiedLoadHandler,
+					};
+				}
+
 				it('Parent is rootLazy', () => {
-					setupDefaultRootLazy(optsNoopLoadHandler);
+					const madeOpts = makeOptsCheck();
+					setupDefaultRootLazy(madeOpts.opts);
 					setupWrapper();
 
 					const $lazyEl0 = createLazyEl();
 					const $lazyEl1 = createLazyEl();
+
+					$div.append($lazyEl0)
+						.append($lazyEl1);
 
 					const lazy0 = new LazyLoader({
 						el: $lazyEl0[0],
@@ -818,10 +836,13 @@ describe('LazyClass', () => {
 					const spiedLazy0Check = sinon.spy(lazy0, 'check');
 					const spiedLazy1Check = sinon.spy(lazy1, 'check');
 
+					expect(spiedLoadHandler).to.have.been.callCount(0);
 					$rootLazy.check();
 
 					expect(spiedLazy0Check).to.have.been.callCount(1);
 					expect(spiedLazy1Check).to.have.been.callCount(1);
+					// 2 + 1 for the check method of root loader was called
+					expect(spiedLoadHandler).to.have.been.callCount(3);
 
 					cleanWrapper();
 					destroyRootLazy();
@@ -831,7 +852,8 @@ describe('LazyClass', () => {
 					let $spacerOfWinHeight0 = null;
 
 					beforeEach(() => {
-						setupDefaultRootLazy(optsNoopLoadHandler);
+						const madeOpts = makeOptsCheck();
+						setupDefaultRootLazy(madeOpts.opts);
 						$spacerOfWinHeight0 = $('<div></div>').css({
 							width: 1,
 							height: WIN_HEIGHT,
@@ -887,6 +909,7 @@ describe('LazyClass', () => {
 						expect(spiedLazy1Check).to.have.been.callCount(0);
 						expect(spiedLazyParent0Check).to.have.been.callCount(1);
 						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+						expect(spiedLoadHandler).to.have.been.callCount(0);
 
 						$rootLazy.check();
 
@@ -897,6 +920,8 @@ describe('LazyClass', () => {
 
 						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(undefined);
 						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(undefined);
+						// 1 for the check method of root loader was called
+						expect(spiedLoadHandler).to.have.been.callCount(1);
 					});
 
 					it('All in view', () => {
@@ -946,11 +971,14 @@ describe('LazyClass', () => {
 						expect(spiedLazy1Check).to.have.been.callCount(1);
 						expect(spiedLazyParent0Check).to.have.been.callCount(1);
 						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+						// 2 + 1 for the check method of parent loaders was called
+						expect(spiedLoadHandler).to.have.been.callCount(3);
 
 						expect(spiedLazy0Check.getCall(0).args[0]).to.be.equal(undefined);
 						expect(spiedLazy1Check.getCall(0).args[0]).to.be.equal(undefined);
 						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(undefined);
 
+						spiedLoadHandler.resetHistory();
 						$rootLazy.check();
 
 						expect(spiedLazy0Check).to.have.been.callCount(2);
@@ -962,6 +990,8 @@ describe('LazyClass', () => {
 						expect(spiedLazy1Check.getCall(1).args[0]).to.be.equal(undefined);
 						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(undefined);
 						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(undefined);
+						// 2 + 2 + 1 for the check method of root and parent loaders was called
+						expect(spiedLoadHandler).to.have.been.callCount(5);
 					});
 				});
 
@@ -969,7 +999,8 @@ describe('LazyClass', () => {
 					let $spacerOfWinHeight0 = null;
 
 					beforeEach(() => {
-						setupDefaultRootLazy(optsNoopLoadHandler);
+						const madeOpts = makeOptsCheck();
+						setupDefaultRootLazy(madeOpts.opts);
 						$spacerOfWinHeight0 = $('<div></div>').css({
 							width: 1,
 							height: WIN_HEIGHT,
@@ -1023,6 +1054,7 @@ describe('LazyClass', () => {
 						expect(spiedLazy1Check).to.have.been.callCount(0);
 						expect(spiedLazyParent0Check).to.have.been.callCount(1);
 						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+						expect(spiedLoadHandler).to.have.been.callCount(0);
 
 						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
 
@@ -1035,6 +1067,8 @@ describe('LazyClass', () => {
 
 						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
 						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+						// 1 for the check method of root loader was called
+						expect(spiedLoadHandler).to.have.been.callCount(1);
 					});
 
 					it('All in view', () => {
@@ -1084,11 +1118,14 @@ describe('LazyClass', () => {
 						expect(spiedLazy1Check).to.have.been.callCount(1);
 						expect(spiedLazyParent0Check).to.have.been.callCount(1);
 						expect(spiedLazyParent1Check).to.have.been.callCount(0);
+						// 2 + 1 for the check method of parent loaders was called
+						expect(spiedLoadHandler).to.have.been.callCount(3);
 
 						expect(spiedLazy0Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
 						expect(spiedLazy1Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
 						expect(spiedLazyParent0Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
 
+						spiedLoadHandler.resetHistory();
 						$rootLazy.check(EV_SCROLL);
 
 						expect(spiedLazy0Check).to.have.been.callCount(2);
@@ -1100,6 +1137,8 @@ describe('LazyClass', () => {
 						expect(spiedLazy1Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
 						expect(spiedLazyParent0Check.getCall(1).args[0]).to.be.equal(EV_SCROLL);
 						expect(spiedLazyParent1Check.getCall(0).args[0]).to.be.equal(EV_SCROLL);
+						// 2 + 2 + 1 for the check method of root and parent loaders was called
+						expect(spiedLoadHandler).to.have.been.callCount(5);
 					});
 				});
 			});
@@ -1223,17 +1262,90 @@ describe('LazyClass', () => {
 	});
 
 	describe('option loadHandler', () => {
-		it('scroll event and loadHandler should be called', () => {
+		describe('scroll event and loadHandler should be called', () => {
+			let $spacerOfWinHeight0 = null;
+			let spiedLoadHandler = null;
+
+			function makeOptsCheck(opts) {
+				spiedLoadHandler = sinon.spy(noop);
+				return {
+					opts: {
+						throttleTime: 1,
+						loadHandler: spiedLoadHandler,
+						...opts,
+					},
+					spiedLoadHandler,
+				};
+			}
+
+			beforeEach(() => {
+				const madeOpts = makeOptsCheck();
+				setupDefaultRootLazy(madeOpts.opts);
+				$spacerOfWinHeight0 = $('<div></div>').css({
+					width: 1,
+					height: WIN_HEIGHT,
+					background: 'red',
+				});
+				setupWrapper();
+			});
+
+			afterEach(() => {
+				cleanWrapper();
+				$spacerOfWinHeight0 = null;
+				destroyRootLazy();
+			});
+
+			it('Parent is root and it\'s not in view initially', async () => {
+				const $lazyEl0 = createLazyEl();
+				const $lazyEl1 = createLazyEl();
+				const $lazyParent0 = createParentLazyEl();
+				const $lazyParent1 = createParentLazyEl();
+				$div.append($spacerOfWinHeight0)
+					.append($lazyParent0)
+					.append($lazyParent1);
+				$lazyParent0.append($lazyEl0)
+					.append($lazyEl1);
+
+				const lazyParent0 = new LazyLoader({
+					el: $lazyParent0[0],
+				});
+				const lazyParent1 = new LazyLoader({
+					el: $lazyParent1[0],
+				});
+				const lazy0 = new LazyLoader({
+					parent: lazyParent0,
+					el: $lazyEl0[0],
+					events: [EV_SCROLL, EV_TRANSFORM],
+				});
+				const lazy1 = new LazyLoader({
+					parent: lazyParent0,
+					el: $lazyEl1[0],
+					events: [EV_SCROLL, EV_TRANSFORM],
+				});
+
+				expect(spiedLoadHandler).to.have.been.callCount(0);
+
+				window.scrollTo(0, WIN_HEIGHT);
+				await Bluebird.delay(5);
+				// parent0 + lazy0 + lazy1 for are in view
+				expect(spiedLoadHandler).to.have.been.callCount(3);
+			});
+
+			it('Parent is not root and it\'s not in view initially', () => {
+			});
 		});
 	});
 });
 
 describe('defaultLoadHandler', () => {
 	describe('switching classes', () => {
-		it('default class target', () => {
+		it('default class target with src', () => {
 		});
 
-		it('class target parent', () => {
+		it('class target parent with src', () => {
+		});
+
+		it('default class target without src, no class should be added', () => {
 		});
 	});
 });
