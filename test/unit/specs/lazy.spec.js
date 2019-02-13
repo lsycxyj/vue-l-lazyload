@@ -14,6 +14,8 @@ import Bluebird from 'bluebird';
 chai.use(sinonChai);
 const { expect } = chai;
 
+const defaultLoadHandler = LazyRewireAPI.__get__('defaultLoadHandler');
+
 const EV_SCROLL = 'scroll',
 	EV_TRANSFORM = 'transform',
 
@@ -1295,7 +1297,7 @@ describe('LazyClass', () => {
 				destroyRootLazy();
 			});
 
-			it('Parent is root and it\'s not in view initially', async () => {
+			it('Parent is not root and it\'s not in view initially', async () => {
 				const $lazyEl0 = createLazyEl();
 				const $lazyEl1 = createLazyEl();
 				const $lazyParent0 = createParentLazyEl();
@@ -1326,12 +1328,36 @@ describe('LazyClass', () => {
 				expect(spiedLoadHandler).to.have.been.callCount(0);
 
 				window.scrollTo(0, WIN_HEIGHT);
-				await Bluebird.delay(5);
+				await Bluebird.delay(15);
 				// parent0 + lazy0 + lazy1 for are in view
 				expect(spiedLoadHandler).to.have.been.callCount(3);
 			});
 
-			it('Parent is not root and it\'s not in view initially', () => {
+			it('Parent is root and it\'s not in view initially', async () => {
+				const $lazyEl0 = createLazyEl();
+				const $lazyEl1 = createLazyEl();
+
+				$div.append($spacerOfWinHeight0)
+					.append($lazyEl0)
+					.append($lazyEl1);
+
+				const lazy0 = new LazyLoader({
+					el: $lazyEl0[0],
+				});
+				const lazy1 = new LazyLoader({
+					el: $lazyEl1[0],
+				});
+
+				expect(spiedLoadHandler).to.have.been.callCount(0);
+
+				window.scrollTo(0, WIN_HEIGHT);
+				await Bluebird.delay(15);
+				// lazy0 + lazy1 for are in view
+				expect(spiedLoadHandler).to.have.been.callCount(2);
+
+				// Arguments should be also correct
+				expect(spiedLoadHandler.getCall(0).args[0]).to.be.equal(lazy0);
+				expect(spiedLoadHandler.getCall(1).args[0]).to.be.equal(lazy1);
 			});
 		});
 	});
@@ -1339,10 +1365,40 @@ describe('LazyClass', () => {
 
 describe('defaultLoadHandler', () => {
 	describe('switching classes', () => {
-		it('default class target with src', () => {
+		let StubReq = null;
+		let oReq = null;
+
+		beforeEach(() => {
+			setupDefaultRootLazy();
+
+			oReq = LazyRewireAPI.__get__('Req');
+			StubReq = sinon.spy(() => {});
+			LazyRewireAPI.__set__('Req', StubReq);
+		});
+		afterEach(() => {
+			StubReq = null;
+			LazyRewireAPI.__set__('Req', oReq);
+
+			destroyRootLazy();
 		});
 
-		it('class target parent with src', () => {
+		it('default class target + mode img with src', () => {
+			const $lazy0 = createLazyEl();
+			const lazy0 = new LazyLoader({
+				el: $lazy0[0],
+				src: 'path/to/img.jpg',
+			});
+			const opts = lazy0.opts;
+			// TODO
+		});
+
+		it('default class target + mode bg with src', () => {
+		});
+
+		it('class target parent + mode img with src', () => {
+		});
+
+		it('class target parent + mode bg with src', () => {
 		});
 
 		it('default class target without src, no class should be added', () => {

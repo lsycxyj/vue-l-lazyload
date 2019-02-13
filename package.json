@@ -11,6 +11,7 @@
     "startDev": "webpack-dev-server --config ./build/webpack.devServer.conf.js --hot",
     "dist": "webpack --config ./build/webpack.prod.conf.js",
     "unit": "cross-env BABEL_ENV=test karma start test/unit/karma.conf.js",
+    "unitReport": "cross-env USE_COVERAGE=true npm run unit",
     "unitWatch": "cross-env WATCH=true npm run unit",
     "unitDebug": "cross-env BABEL_ENV=test karma start test/unit/karma.conf.js --inspect-brk"
   },

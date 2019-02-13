@@ -422,7 +422,8 @@ export function LazyClass(scope) {
 						result = true;
 					}
 				}
-			} else if (el === win) {
+			}
+			else if (el === win) {
 				// window element is always in view
 				result = true;
 			}

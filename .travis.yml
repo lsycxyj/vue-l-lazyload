@@ -3,7 +3,7 @@ node_js:
   - "6"
 install:
   - npm install --dev
-  - npm install -g karma webpack cross-env codecov
+  - npm install -g codecov
 script:
-  - npm run-script unit
+  - npm run-script unitReport
   - cat ./test/unit/coverage/lcov.info | codecov

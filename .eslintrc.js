@@ -9,7 +9,7 @@ module.exports = {
 		'func-names': 0,
 		'import/prefer-default-export': 0,
 		'indent': ['error', 'tab', { SwitchCase: 1, }],
-		'linebreak-style': 0,
+		'linebreak-style': ['error', 'unix'],
 		'max-len': ['error', { code: 150 }],
 		'no-debugger': process.env.NODE_ENV === 'production' ? 2 : 0,
 		'no-mixed-operators': 0,

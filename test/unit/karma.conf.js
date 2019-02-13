@@ -31,6 +31,11 @@ const isWatchMode = !!process.env.WATCH;
 // For ChromeHeadless
 process.env.CHROME_BIN = require('puppeteer').executablePath();
 
+const reporters = ['mocha'];
+if (process.env.USE_COVERAGE) {
+	reporters.push('coverage');
+}
+
 module.exports = function (config) {
 	config.set({
 
@@ -64,10 +69,7 @@ module.exports = function (config) {
 		// possible values: 'dots', 'progress'
 		// available reporters: https://npmjs.org/browse/keyword/karma-reporter
 		// add coverage support with babel's test plugins
-		reporters: [
-			'mocha',
-			// 'coverage',
-		],
+		reporters,
 
 		// webpack
 		webpack: webpackConfig,
@@ -75,13 +77,13 @@ module.exports = function (config) {
 			noInfo: true,
 		},
 		// Coverage options
-		// coverageReporter: {
-		// 	dir: './coverage',
-		// 	reporters: [
-		// 		{ type: 'lcov', subdir: '.' },
-		// 		{ type: 'text-summary' },
-		// 	],
-		// },
+		coverageReporter: {
+			dir: './coverage',
+			reporters: [
+				{ type: 'lcov', subdir: '.' },
+				{ type: 'text-summary' },
+			],
+		},
 
 		// web server port
 		port: 9876,
