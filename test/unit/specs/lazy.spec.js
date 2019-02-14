@@ -1328,7 +1328,7 @@ describe('LazyClass', () => {
 				expect(spiedLoadHandler).to.have.been.callCount(0);
 
 				window.scrollTo(0, WIN_HEIGHT);
-				await Bluebird.delay(15);
+				await Bluebird.delay(20);
 				// parent0 + lazy0 + lazy1 for are in view
 				expect(spiedLoadHandler).to.have.been.callCount(3);
 			});
@@ -1351,7 +1351,7 @@ describe('LazyClass', () => {
 				expect(spiedLoadHandler).to.have.been.callCount(0);
 
 				window.scrollTo(0, WIN_HEIGHT);
-				await Bluebird.delay(15);
+				await Bluebird.delay(20);
 				// lazy0 + lazy1 for are in view
 				expect(spiedLoadHandler).to.have.been.callCount(2);
 
@@ -1366,39 +1366,77 @@ describe('LazyClass', () => {
 describe('defaultLoadHandler', () => {
 	describe('switching classes', () => {
 		let StubReq = null;
+		let spiedOnErr = null;
+		let spiedOnLoad = null;
 		let oReq = null;
 
 		beforeEach(() => {
 			setupDefaultRootLazy();
 
 			oReq = LazyRewireAPI.__get__('Req');
-			StubReq = sinon.spy(() => {});
+			StubReq = sinon.spy(() => {
+			});
 			LazyRewireAPI.__set__('Req', StubReq);
 		});
 		afterEach(() => {
 			StubReq = null;
 			LazyRewireAPI.__set__('Req', oReq);
+			spiedOnLoad = null;
+			spiedOnErr = null;
 
 			destroyRootLazy();
 		});
 
-		it('default class target + mode img with src', () => {
+		function assertReqOptions(lazy) {
+			const reqOpts = StubReq.getCall(0).args[0];
+			const lazyOpts = lazy.opts;
+			const { classErr, classLoaded, classLoading, mode } = lazyOpts;
+
+			const { el, loadEl, src, retry, filters, onReq } = reqOpts;
+			expect($(el).hasClass(classErr)).to.be.equal(false);
+			expect($(el).hasClass(classLoaded)).to.be.equal(false);
+			expect($(el).hasClass(classLoading)).to.be.equal(!!src);
+			expect(el === loadEl).to.be.equal(mode !== MODE_BG);
+			expect(retry).to.be.equal(lazyOpts.retry);
+			expect(filters).to.be.equal(lazyOpts.filters);
+			expect(onReq).to.be.equal(lazyOpts.onReq);
+		}
+
+		it('default class target + mode img with src and succeeded', () => {
 			const $lazy0 = createLazyEl();
+			spiedOnLoad = sinon.spy(() => {});
 			const lazy0 = new LazyLoader({
 				el: $lazy0[0],
 				src: 'path/to/img.jpg',
+				onLoad: spiedOnLoad,
+				onReq: () => {},
 			});
-			const opts = lazy0.opts;
-			// TODO
+			defaultLoadHandler(lazy0);
+			assertReqOptions(lazy0);
 		});
 
-		it('default class target + mode bg with src', () => {
+		it('default class target + mode img with src but failed', () => {
+			const $lazy0 = createLazyEl();
+			spiedOnErr = sinon.spy(() => {});
+			const lazy0 = new LazyLoader({
+				el: $lazy0[0],
+				src: 'path/to/img.jpg',
+				onErr: spiedOnErr,
+			});
+			defaultLoadHandler(lazy0);
+			assertReqOptions(lazy0);
 		});
 
-		it('class target parent + mode img with src', () => {
+		it('default class target + mode bg with src and succeeded', () => {
 		});
 
-		it('class target parent + mode bg with src', () => {
+		it('class target parent + mode img with src and succeeded', () => {
+		});
+
+		it('class target parent + mode img with src but failed', () => {
+		});
+
+		it('class target parent + mode bg with src and succeeded', () => {
 		});
 
 		it('default class target without src, no class should be added', () => {
