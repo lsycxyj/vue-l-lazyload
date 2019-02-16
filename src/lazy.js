@@ -176,6 +176,11 @@ function defaultLoadHandler(lazyLoader) {
 		addClass(el, className);
 	}
 
+	function onComplete() {
+		lazyLoader.stat = STAT_LOADED;
+		once && lazyLoader.destroy();
+	}
+
 	oReq && oReq.cancel();
 
 	src = trim(src);
@@ -206,9 +211,8 @@ function defaultLoadHandler(lazyLoader) {
 			filters,
 			onLoad(info) {
 				_onLoad && _onLoad();
-				lazyLoader.stat = STAT_LOADED;
+				onComplete();
 				switchClass(elClassTarget, classLoaded);
-				once && lazyLoader.destroy();
 
 				onLoad && onLoad(info);
 			},
@@ -216,9 +220,8 @@ function defaultLoadHandler(lazyLoader) {
 				_onErr && _onErr();
 
 				if (info.isEnd) {
-					lazyLoader.stat = STAT_LOADED;
+					onComplete();
 					switchClass(elClassTarget, classErr);
-					once && lazyLoader.destroy();
 				}
 
 				onErr && onErr(info);
@@ -226,6 +229,9 @@ function defaultLoadHandler(lazyLoader) {
 			onReq,
 		});
 		switchClass(elClassTarget, classLoading);
+	}
+	else {
+		onComplete();
 	}
 }
 
