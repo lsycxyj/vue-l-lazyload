@@ -41,7 +41,7 @@ var path = require('path'),
 		plugins: [
 			new webpack.optimize.OccurrenceOrderPlugin(),
 			new CompressionWebpackPlugin({
-				asset: '[path].gz[query]',
+				filename: '[path].gz[query]',
 				algorithm: 'gzip',
 				test: new RegExp(
 					`\\.(${

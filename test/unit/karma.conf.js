@@ -80,7 +80,10 @@ module.exports = function (config) {
 		coverageReporter: {
 			dir: './coverage',
 			reporters: [
-				{ type: 'lcov', subdir: '.' },
+				// There is a bug of html reporter to write files when I try to use single file component of vue
+				// { type: 'html', subdir: '.' },
+				{ type: 'text', file: 'text.txt' },
+				{ type: 'lcovonly', subdir: '.' },
 				{ type: 'text-summary' },
 			],
 		},

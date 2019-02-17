@@ -197,17 +197,17 @@ FMap.prototype.keys = function () {
 	return Object.keys(this._m);
 };
 
-FMap.prototype.values = function () {
-	const me = this;
-	const { _m } = me;
-	const ret = [];
-	/* eslint-disable guard-for-in, no-restricted-syntax */
-	for (const k in _m) {
-		/* eslint-disable guard-for-in, no-restricted-syntax */
-		ret.push(_m[k]);
-	}
-	return ret;
-};
+// FMap.prototype.values = function () {
+// 	const me = this;
+// 	const { _m } = me;
+// 	const ret = [];
+// 	/* eslint-disable guard-for-in, no-restricted-syntax */
+// 	for (const k in _m) {
+// 		/* eslint-disable guard-for-in, no-restricted-syntax */
+// 		ret.push(_m[k]);
+// 	}
+// 	return ret;
+// };
 
 FMap.prototype.size = function () {
 	return this._l;

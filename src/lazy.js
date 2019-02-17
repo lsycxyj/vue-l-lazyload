@@ -244,6 +244,7 @@ function destroyLoaderDeep(loader) {
 	loader.destroy();
 }
 
+// TODO change parent support
 export function LazyClass(scope) {
 	return class LazyLoader {
 		constructor(opts) {
@@ -443,6 +444,7 @@ export function LazyClass(scope) {
 			return result;
 		}
 
+		// NOTE: Don't change parent since the parent options are merged in constructor
 		addChild(lazyLoader) {
 			const me = this,
 				events = lazyLoader.events,
@@ -546,7 +548,7 @@ export function LazyClass(scope) {
 					if (parent) {
 						parent.rmChild(me);
 					}
-					else if (me.isRoot) {
+					else if (me.opts.isRoot) {
 						delete scope.$lazy;
 					}
 				}
