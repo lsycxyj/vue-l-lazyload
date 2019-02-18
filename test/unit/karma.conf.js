@@ -99,9 +99,9 @@ module.exports = function (config) {
 		coverageIstanbulReporter: {
 			// reports can be any that are listed here: https://github.com/istanbuljs/istanbuljs/tree/aae256fb8b9a3d19414dcf069c592e88712c32c6/packages/istanbul-reports/lib
 			reports: [
-				// 'html',
-				'text',
-				'lcovonly',
+				'html',
+				// 'text',
+				// 'lcovonly',
 				'text-summary',
 			],
 
