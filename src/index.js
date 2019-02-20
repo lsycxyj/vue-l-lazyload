@@ -79,7 +79,7 @@ export const LazyRef = {
 
 export const Lazy = {
 	bind(el, binding, vnode) {
-		var opts = binding.value;
+		let opts = binding.value;
 
 		if (isStr(opts)) {
 			opts = {
@@ -94,7 +94,7 @@ export const Lazy = {
 
 		// add to after $refs has references
 		vm.$nextTick(() => {
-			var ref;
+			let ref;
 			// Prevent it's unbound before initialization
 			if (vnode._lazyBound) {
 				if (refStr) {
@@ -147,6 +147,7 @@ export const Lazy = {
 			vnode._lazyBound = false;
 		}
 
+		// Ensure the loader will be destroyed after it's created
 		vnode.context.$nextTick(() => {
 			const loader = vnode._$lazy;
 			if (loader) {

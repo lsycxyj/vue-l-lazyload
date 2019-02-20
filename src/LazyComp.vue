@@ -1,10 +1,10 @@
 <template>
-  <in-view-comp ref="c" :class="cClass" :tag="tag" :opts="cOpts">
-    <slot v-if="stat === COMP_NOT_LOAD" name="not-load"></slot>
-    <slot v-else-if="stat === COMP_LOADING" name="loading"></slot>
-    <slot v-else-if="stat === COMP_ERR" name="err"></slot>
-    <slot v-else></slot>
-  </in-view-comp>
+	<in-view-comp ref="c" :class="cClass" :tag="tag" :opts="cOpts">
+		<slot v-if="stat === COMP_NOT_LOAD" name="not-load"></slot>
+		<slot v-else-if="stat === COMP_LOADING" name="loading"></slot>
+		<slot v-else-if="stat === COMP_ERR" name="err"></slot>
+		<slot v-else></slot>
+	</in-view-comp>
 </template>
 
 <script>
@@ -27,12 +27,12 @@
 				type: Object,
 			},
 			/*
-        There's a bug in Vue. If you provide some methods for outside components to change the stat of data,
-        you will lose some event listeners after you change the stat to another and change it back
-        (eg. The methods of @event won't be triggered after it's changed back).
-        So I have to design a prop as the switcher of slots.
-        The initial stat MUST be COMP_NOT_LOAD and the stat SHOULD NOT be changed until this component is mounted for InViewComp's initialization.
-       */
+				There's a bug in Vue. If you provide some methods for outside components to change the stat of data,
+				you will lose some event listeners after you change the stat to another and change it back
+				(eg. The methods of @event won't be triggered after it's changed back).
+				So I have to design a prop as the switcher of slots.
+				The initial stat MUST be COMP_NOT_LOAD and the stat SHOULD NOT be changed until this component is mounted for InViewComp's initialization.
+		   */
 			stat: {
 				type: Number,
 				default: COMP_NOT_LOAD,
@@ -86,22 +86,19 @@
 		watch: {
 			stat(v) {
 				const $vm = this;
-				const { $lazy, endCheck } = $vm.c();
 				switch (v) {
 					case COMP_LOADING:
-						$lazy.stat = STAT_LOADING;
+						$vm.setLoading();
 						break;
 					case COMP_ERR:
-						$lazy.stat = STAT_LOADED;
+						$vm.setLoadErr();
 						break;
 					case COMP_LOADED:
-						$lazy.stat = STAT_LOADED;
-						// End checking automatically if it's loaded
-						endCheck();
+						$vm.setLoaded();
 						break;
 					case COMP_NOT_LOAD:
 					default:
-						$lazy.stat = STAT_NOT_LOAD;
+						$vm.resetLoad();
 				}
 			},
 		},

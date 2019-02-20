@@ -2,7 +2,6 @@ import chai from 'chai';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import noop from 'lodash/noop';
-import $ from 'jquery';
 
 import {
 	__RewireAPI__ as IndexRewireAPI,
@@ -10,6 +9,8 @@ import {
 	getLazyLoader,
 	Lazy,
 	LazyRef,
+	InViewComp,
+	LazyComp,
 } from '../../../src/index';
 import { LazyClass } from '../../../src/lazy';
 import { mount } from '@vue/test-utils';
@@ -40,9 +41,7 @@ function makeStubVue() {
 
 function stubLazyLoader() {
 	const LazyLoader = LazyClass(stubVue);
-	StubLazyLoader = sinon.spy(function () {
-		return sinon.createStubInstance(LazyLoader);
-	});
+	StubLazyLoader = sinon.spy(() => sinon.createStubInstance(LazyLoader));
 	IndexRewireAPI.__set__('LazyLoader', StubLazyLoader);
 }
 
@@ -88,21 +87,241 @@ describe('index', () => {
 			resetInstall();
 		});
 
-		describe('root lazy is parent', () => {
-			it('bind', () => {
-			});
-
-			it('Directive is unbound before bind completes', () => {
-			});
-
-			it('componentUpdated', () => {
-			});
-
-			it('unbind', () => {
-			});
+		afterEach(() => {
+			StubLazyLoader.resetHistory();
 		});
 
-		describe('LazyRef is parent', () => {
+		it('bind with string opts', async () => {
+			const EXPECTED_SRC = 'path/to/img.png';
+			const TestComp = {
+				template: `
+						<div>
+							<img id="el" v-lazy="'${EXPECTED_SRC}'">
+						</div>
+					`,
+				directives: {
+					Lazy,
+				},
+			};
+
+			// Mount component
+			const wrapper = mount(TestComp);
+			const { vm } = wrapper;
+			let _res = null;
+			let p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			expect(StubLazyLoader.getCall(0).args[0]).to.eql({
+				src: EXPECTED_SRC,
+				el: wrapper.element.querySelector('#el'),
+			});
+			// Initial check
+			const $lazy = StubLazyLoader.getCall(0).returnValue;
+			expect($lazy.check).to.have.been.callCount(1);
+
+			// Then destroy it
+			wrapper.destroy();
+			p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			expect($lazy.destroy).to.have.been.callCount(1);
+		});
+
+		it('bind with normal opts', async () => {
+			const EXPECTED_SRC = 'path/to/img.png';
+			const TestComp = {
+				template: `
+						<div>
+							<img id="el" v-lazy="{src: '${EXPECTED_SRC}'}">
+						</div>
+					`,
+				directives: {
+					Lazy,
+				},
+			};
+
+			// Mount component
+			const wrapper = mount(TestComp);
+			const { vm } = wrapper;
+			let _res = null;
+			let p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			expect(StubLazyLoader.getCall(0).args[0]).to.eql({
+				src: EXPECTED_SRC,
+				el: wrapper.element.querySelector('#el'),
+			});
+			// Initial check
+			const $lazy = StubLazyLoader.getCall(0).returnValue;
+			expect($lazy.check).to.have.been.callCount(1);
+
+			// Then destroy it
+			wrapper.destroy();
+			p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			// Unbind was tested
+			expect($lazy.destroy).to.have.been.callCount(1);
+		});
+
+		it('Element reused', () => {
+			// TODO
+		});
+
+		it('Directive is unbound before bind completes', async () => {
+			const EXPECTED_SRC = 'path/to/img.png';
+			const TestComp = {
+				template: `
+						<div>
+							<img id="el" v-lazy="{src: '${EXPECTED_SRC}'}">
+						</div>
+					`,
+				directives: {
+					Lazy,
+				},
+			};
+
+			// Mount component
+			const wrapper = mount(TestComp);
+			const { vm } = wrapper;
+			expect(StubLazyLoader).to.have.been.callCount(0);
+
+			// Then destroy it immediately
+			wrapper.destroy();
+			expect(StubLazyLoader).to.have.been.callCount(0);
+			let _res = null;
+			const p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			// No loader should be created
+			expect(StubLazyLoader).to.have.been.callCount(0);
+		});
+
+		it('Work with LazyRef', async () => {
+			const EXPECTED_SRC = 'path/to/img.png';
+			const TestComp = {
+				template: `
+						<div>
+							<lazy-ref ref="ref">
+								<img id="el" v-lazy="{src: '${EXPECTED_SRC}', ref: 'ref'}">
+							</lazy-ref>
+						</div>
+					`,
+				directives: {
+					Lazy,
+				},
+				components: {
+					LazyRef,
+				},
+			};
+
+			// Mount component
+			const wrapper = mount(TestComp);
+			const { vm } = wrapper;
+			// LazyRef created a loader
+			expect(StubLazyLoader).to.have.been.callCount(1);
+
+			let _res = null;
+			const p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+
+			const $lazyOfRef = vm.$refs.ref.$lazy;
+			expect(!!$lazyOfRef).to.be.equal(true);
+			expect(StubLazyLoader.getCall(1).args[0]).to.include({
+				src: EXPECTED_SRC,
+				el: wrapper.element.querySelector('#el'),
+				parent: $lazyOfRef,
+			});
+			// Initial check
+			const $lazy = StubLazyLoader.getCall(1).returnValue;
+			expect($lazy.check).to.have.been.callCount(1);
+		});
+
+		async function testComponentUpdated({ EXPECTED_OPTS_1, EXPECTED_OPTS_2, EXPECTED_FINAL_SRC }) {
+			const TestComp = {
+				template: `
+						<div>
+							<img id="el" v-lazy="opts">
+						</div>
+					`,
+				props: ['opts'],
+				directives: {
+					Lazy,
+				},
+			};
+
+			// Mount component
+			const wrapper = mount(TestComp, {
+				propsData: {
+					opts: EXPECTED_OPTS_1,
+				},
+			});
+			const { vm } = wrapper;
+			let _res = null;
+			let p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+
+			const $lazy = StubLazyLoader.getCall(0).returnValue;
+			expect($lazy.update).to.have.been.callCount(0);
+
+			// Update props
+			wrapper.setProps({ opts: EXPECTED_OPTS_2 });
+			p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			expect($lazy.update.getCall(0).args[0]).to.eql({
+				src: EXPECTED_FINAL_SRC,
+			});
+		}
+
+		it('componentUpdated with string opts', async () => {
+			const EXPECTED_OPTS_1 = 'path/to/img1.png';
+			const EXPECTED_OPTS_2 = 'path/to/img2.png';
+			const EXPECTED_FINAL_SRC = EXPECTED_OPTS_2;
+			await testComponentUpdated({ EXPECTED_OPTS_1, EXPECTED_OPTS_2, EXPECTED_FINAL_SRC });
+		});
+
+		it('componentUpdated with normal opts', async () => {
+			const EXPECTED_SRC_1 = 'path/to/img1.png';
+			const EXPECTED_SRC_2 = 'path/to/img2.png';
+			const EXPECTED_OPTS_1 = { src: EXPECTED_SRC_1 };
+			const EXPECTED_OPTS_2 = { src: EXPECTED_SRC_2 };
+			const EXPECTED_FINAL_SRC = EXPECTED_SRC_2;
+			await testComponentUpdated({ EXPECTED_OPTS_1, EXPECTED_OPTS_2, EXPECTED_FINAL_SRC });
 		});
 	});
 
@@ -214,6 +433,97 @@ describe('index', () => {
 				vm.rm(lazy0);
 				expect(vm.$lazy.rmChild.getCall(0).args[0]).to.be.equal(lazy0);
 			});
+		});
+	});
+
+	describe('InViewComp', () => {
+		before(() => {
+			const stubVue = makeStubVue();
+			stubLazyLoader(stubVue);
+		});
+
+		after(() => {
+			resetInstall();
+		});
+
+		afterEach(() => {
+			StubLazyLoader.resetHistory();
+		});
+
+		it('mounted', () => {
+			// Initial check
+		});
+
+		it('destroyed', () => {
+		});
+
+		it('endCheck', () => {
+		});
+
+		it('Default loadHandler', () => {
+		});
+
+		it('opts loadHandler', () => {
+		});
+	});
+
+	describe('LazyComp', () => {
+		before(() => {
+			const stubVue = makeStubVue();
+			stubLazyLoader(stubVue);
+		});
+
+		after(() => {
+			resetInstall();
+		});
+
+		afterEach(() => {
+			StubLazyLoader.resetHistory();
+		});
+
+		it('prop tag default', () =>{
+		});
+
+		it('prop classes default', () =>{
+		});
+
+		it('prop classes specified', () =>{
+		});
+
+		it('prop loadHandler default', () =>{
+		});
+
+		it('prop loadHandler specified', () =>{
+		});
+
+		it('prop onInView', () =>{
+		});
+
+		it('prop stat changes', () => {
+		});
+
+		it('slots not-load', () => {
+		});
+
+		it('slots loading', () => {
+		});
+
+		it('slots err', () => {
+		});
+
+		it('slots default', () => {
+		});
+
+		it('method setLoading', () => {
+		});
+
+		it('method setLoadErr', () => {
+		});
+
+		it('method setLoaded', () => {
+		});
+
+		it('method resetLoad', () => {
 		});
 	});
 });
