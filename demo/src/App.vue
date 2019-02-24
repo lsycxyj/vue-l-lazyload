@@ -169,6 +169,7 @@
 				lazyCompOpts: {
 					onInView() {
 						console.log('in view triggered');
+						// Call methods of LazyComp to set "stat" of LazyLoader to pause this callback calling
 					},
 					throttleMethod: 'throttle',
 				},

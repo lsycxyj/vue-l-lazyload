@@ -87,7 +87,6 @@ module.exports = function (config) {
 		// coverageReporter: {
 		// 	dir: './coverage',
 		// 	reporters: [
-		// 		// There is a bug of html reporter to write files because of wrong file names when I try to use single file component of vue
 		// 		// { type: 'html', subdir: '.' },
 		// 		{ type: 'text', file: 'text.txt' },
 		// 		{ type: 'lcovonly', subdir: '.' },
@@ -99,9 +98,7 @@ module.exports = function (config) {
 		coverageIstanbulReporter: {
 			// reports can be any that are listed here: https://github.com/istanbuljs/istanbuljs/tree/aae256fb8b9a3d19414dcf069c592e88712c32c6/packages/istanbul-reports/lib
 			reports: [
-				// 'html',
-				'text',
-				'lcovonly',
+				'lcov',
 				'text-summary',
 			],
 
@@ -132,19 +129,6 @@ module.exports = function (config) {
 
 			verbose: true, // output config used by istanbul for debugging
 		},
-
-		// remapIstanbulReporter: {
-		//   remapOptions: {
-		//     mapFileName(filename) {
-		//       const originalFilename = filename.replace(/\.vue(\.[jt]s)?(\?.+)?$/, '.vue');
-		//       console.log(originalFilename);
-		//     	return originalFilename;
-		// 		},
-		// 	},
-		//   reports: {
-		//     html: 'coverage',
-		//   },
-		// },
 
 		// web server port
 		port: 9876,

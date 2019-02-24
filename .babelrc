@@ -10,7 +10,6 @@
         "transform-runtime",
         "syntax-async-functions",
         "transform-regenerator",
-        "istanbul",
         "rewire"
       ]
     }

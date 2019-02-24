@@ -5,6 +5,7 @@ import { LazyClass } from './lazy';
 import _LazyComp from './LazyComp.vue';
 import _InViewComp from './InViewComp.vue';
 
+export { STAT_NOT_LOAD, STAT_LOADING, STAT_LOADED } from './lazy';
 export { COMP_NOT_LOAD, COMP_LOADING, COMP_LOADED, COMP_ERR } from './LazyComp.vue';
 
 /**

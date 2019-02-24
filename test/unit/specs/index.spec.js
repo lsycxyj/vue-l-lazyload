@@ -2,6 +2,7 @@ import chai from 'chai';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import noop from 'lodash/noop';
+import $ from 'jquery';
 
 import {
 	__RewireAPI__ as IndexRewireAPI,
@@ -11,6 +12,13 @@ import {
 	LazyRef,
 	InViewComp,
 	LazyComp,
+	STAT_NOT_LOAD,
+	STAT_LOADING,
+	STAT_LOADED,
+	COMP_NOT_LOAD,
+	COMP_LOADING,
+	COMP_LOADED,
+	COMP_ERR,
 } from '../../../src/index';
 import { LazyClass } from '../../../src/lazy';
 import { mount } from '@vue/test-utils';
@@ -20,6 +28,21 @@ const { expect, assert } = chai;
 
 let stubVue = null;
 let StubLazyLoader = null;
+let scope = null;
+
+let _waitPromiseResolve = null;
+let waitPromise = null;
+
+function makeNewWaitScrollPromise() {
+	waitPromise = new Promise((res) => {
+		_waitPromiseResolve = res;
+	});
+}
+
+function resolveWaitScrollPromise() {
+	_waitPromiseResolve();
+	_waitPromiseResolve = null;
+}
 
 function cleanLazyLoaderClass() {
 	IndexRewireAPI.__set__('LazyLoader', undefined);
@@ -27,22 +50,62 @@ function cleanLazyLoaderClass() {
 
 function resetInstall() {
 	cleanLazyLoaderClass();
+	if (scope && scope.$lazy) {
+		scope.$lazy.destroy({ deep: true });
+	}
+	scope = null;
 	stubVue = null;
 	StubLazyLoader = null;
 }
 
 function makeStubVue() {
-	stubVue = {
+	return {
 		directive: sinon.spy(noop),
 		component: sinon.spy(noop),
 	};
+}
+
+function stubStubVue() {
+	stubVue = makeStubVue();
+	scope = stubVue;
 	return stubVue;
 }
 
-function stubLazyLoader() {
+function makeStubLazyLoader(opts) {
+	const { instancePostProcessor, stubVue } = {
+		...opts,
+	};
 	const LazyLoader = LazyClass(stubVue);
-	StubLazyLoader = sinon.spy(() => sinon.createStubInstance(LazyLoader));
-	IndexRewireAPI.__set__('LazyLoader', StubLazyLoader);
+	StubLazyLoader = sinon.spy(() => {
+		let instance = sinon.createStubInstance(LazyLoader);
+		if (instancePostProcessor) {
+			instance = instancePostProcessor(instance);
+		}
+		return instance;
+	});
+	return StubLazyLoader;
+}
+
+function stubLazyLoader(opts) {
+	IndexRewireAPI.__set__('LazyLoader', makeStubLazyLoader({
+		stubVue,
+		...opts,
+	}));
+}
+
+function resetFakeStubAndStubRealLazyLoader() {
+	resetInstall();
+
+	// Setup LazyLoader
+	const scope = {};
+	// Use real loader instead of using stub loader with doesn't implement anything.
+	const LazyLoader = LazyClass(scope);
+	IndexRewireAPI.__set__('LazyLoader', LazyLoader);
+
+	return {
+		LazyLoader,
+		scope,
+	};
 }
 
 describe('index', () => {
@@ -53,7 +116,7 @@ describe('index', () => {
 
 		it('default regGlobal', () => {
 			assert.isFunction(VueLLazyload.install);
-			VueLLazyload.install(makeStubVue());
+			VueLLazyload.install(stubStubVue());
 			const argsDirective = stubVue.directive.getCall(0).args;
 			const argsComponent = stubVue.component.getCall(0).args;
 
@@ -68,7 +131,7 @@ describe('index', () => {
 		});
 
 		it('LazyLoader class can be retrieved after install', () => {
-			const stubVue = makeStubVue();
+			const stubVue = stubStubVue();
 			VueLLazyload.install(stubVue);
 
 			const _LazyLoader = getLazyLoader();
@@ -78,17 +141,13 @@ describe('index', () => {
 	});
 
 	describe('Lazy', () => {
-		before(() => {
-			const stubVue = makeStubVue();
-			stubLazyLoader(stubVue);
-		});
-
-		after(() => {
-			resetInstall();
+		beforeEach(() => {
+			stubStubVue();
+			stubLazyLoader();
 		});
 
 		afterEach(() => {
-			StubLazyLoader.resetHistory();
+			resetInstall();
 		});
 
 		it('bind with string opts', async () => {
@@ -180,8 +239,62 @@ describe('index', () => {
 			expect($lazy.destroy).to.have.been.callCount(1);
 		});
 
-		it('Element reused', () => {
-			// TODO
+		it('Element reused', async () => {
+			const { LazyLoader } = resetFakeStubAndStubRealLazyLoader();
+			// Stub inView
+			LazyLoader.prototype.inView = () => true;
+			const $rootLazy = new LazyLoader({ isRoot: true });
+
+			const EXPECTED_SRC_1 = 'http://path/to/img_reuse_1.png';
+			const EXPECTED_SRC_2 = 'http://path/to/img_reuse_2.png';
+			const TestComp = {
+				template: `
+						<div>
+							<img id="el1" v-lazy="{src: '${EXPECTED_SRC_1}', once: false }" v-if="showFirst">
+							<img id="el2" v-lazy="{src: '${EXPECTED_SRC_2}', once: false }">
+						</div>
+					`,
+				directives: {
+					Lazy,
+				},
+				props: {
+					showFirst: {
+						type: Boolean,
+						default: true,
+					},
+				},
+			};
+
+			// Mount component
+			const wrapper = mount(TestComp);
+			const { vm } = wrapper;
+			let _res = null;
+			let p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			expect(wrapper.element.querySelector('#el1').src).to.be.equal(EXPECTED_SRC_1);
+			expect(wrapper.element.querySelector('#el2').src).to.be.equal(EXPECTED_SRC_2);
+
+			// Hide the first element
+			wrapper.setProps({
+				showFirst: false,
+			});
+			p = new Promise((res) => {
+				_res = res;
+			});
+			vm.$nextTick(() => {
+				_res();
+			});
+			await p;
+			expect(!wrapper.element.querySelector('#el1')).to.be.equal(true);
+			expect(wrapper.element.querySelector('#el2').src).to.be.equal(EXPECTED_SRC_2);
+
+			// Clean up
+			$rootLazy.destroy({ deep: true });
 		});
 
 		it('Directive is unbound before bind completes', async () => {
@@ -327,8 +440,8 @@ describe('index', () => {
 
 	describe('LazyRef', () => {
 		before(() => {
-			makeStubVue();
-			stubLazyLoader(stubVue);
+			stubStubVue();
+			stubLazyLoader();
 		});
 
 		after(() => {
@@ -438,8 +551,8 @@ describe('index', () => {
 
 	describe('InViewComp', () => {
 		before(() => {
-			const stubVue = makeStubVue();
-			stubLazyLoader(stubVue);
+			stubStubVue();
+			stubLazyLoader();
 		});
 
 		after(() => {
@@ -450,27 +563,108 @@ describe('index', () => {
 			StubLazyLoader.resetHistory();
 		});
 
-		it('mounted', () => {
+		it('mounted with default option', () => {
+			function foo() {
+			}
+
+			const wrapper = mount(InViewComp, {
+				propsData: {
+					opts: {
+						whateverArg: foo,
+					},
+				},
+			});
+			expect(wrapper.props().tag).to.be.equal('div');
+			expect(wrapper.element.tagName).to.be.equal('DIV');
+
+			expect(StubLazyLoader.getCall(0).args[0]).to.eql({
+				el: wrapper.element,
+				loadHandler: noop,
+				// Pass through other args
+				whateverArg: foo,
+			});
+
 			// Initial check
+			const $lazy = wrapper.vm.$lazy;
+			expect($lazy.check).to.have.been.callCount(1);
+		});
+
+		it('Specified loadHandler', () => {
+			const spiedLoadHandler = sinon.spy(noop);
+
+			const wrapper = mount(InViewComp, {
+				propsData: {
+					opts: {
+						loadHandler: spiedLoadHandler,
+					},
+				},
+			});
+			expect(wrapper.props().tag).to.be.equal('div');
+			expect(wrapper.element.tagName).to.be.equal('DIV');
+
+			const loaderOpts = StubLazyLoader.getCall(0).args[0];
+			expect(loaderOpts).to.include({
+				el: wrapper.element,
+			});
+			const { loadHandler } = loaderOpts;
+
+			// Initial check
+			const { vm } = wrapper;
+			const $lazy = vm.$lazy;
+			expect($lazy.check).to.have.been.callCount(1);
+
+			// Manually call patched loadHandler
+			loadHandler();
+
+			expect(spiedLoadHandler.getCall(0).args[0]).to.eql({
+				$lazy,
+				endCheck: vm.endCheck,
+			});
+		});
+
+		it('Specified tag', () => {
+			const wrapper = mount(InViewComp, {
+				propsData: {
+					tag: 'section',
+				},
+			});
+			expect(wrapper.props().tag).to.be.equal('section');
+			expect(wrapper.element.tagName).to.be.equal('SECTION');
+
+			expect(StubLazyLoader.getCall(0).args[0]).to.include({
+				el: wrapper.element,
+			});
+
+			// Initial check
+			const $lazy = wrapper.vm.$lazy;
+			expect($lazy.check).to.have.been.callCount(1);
 		});
 
 		it('destroyed', () => {
+			const wrapper = mount(InViewComp);
+			const { vm } = wrapper;
+			const { $lazy } = vm;
+			const spiedDestroy = $lazy.destroy;
+			expect(spiedDestroy).to.have.been.callCount(0);
+			wrapper.destroy();
+			expect(spiedDestroy).to.have.been.callCount(1);
 		});
 
 		it('endCheck', () => {
-		});
-
-		it('Default loadHandler', () => {
-		});
-
-		it('opts loadHandler', () => {
+			const wrapper = mount(InViewComp);
+			const { vm } = wrapper;
+			const { $lazy } = vm;
+			const spiedDestroy = $lazy.destroy;
+			expect(spiedDestroy).to.have.been.callCount(0);
+			vm.endCheck();
+			expect(spiedDestroy).to.have.been.callCount(1);
 		});
 	});
 
 	describe('LazyComp', () => {
 		before(() => {
-			const stubVue = makeStubVue();
-			stubLazyLoader(stubVue);
+			const stubVue = stubStubVue();
+			stubLazyLoader();
 		});
 
 		after(() => {
@@ -478,52 +672,213 @@ describe('index', () => {
 		});
 
 		afterEach(() => {
-			StubLazyLoader.resetHistory();
+			if (StubLazyLoader && StubLazyLoader.resetHistory) {
+				StubLazyLoader.resetHistory();
+			}
 		});
 
-		it('prop tag default', () =>{
+		it('prop tag default', () => {
+			const wrapper = mount(LazyComp);
+			expect(wrapper.props().tag).to.be.equal('div');
+			expect(wrapper.element.tagName).to.be.equal('DIV');
 		});
 
-		it('prop classes default', () =>{
+		it('prop classes default with stat changes', async () => {
+			const { LazyLoader } = resetFakeStubAndStubRealLazyLoader();
+			const $rootLazy = new LazyLoader({ isRoot: true });
+
+			const CLASS_NOT_LOAD = 'comp-stat-not-load';
+			const CLASS_LOADING = 'comp-stat-loading';
+			const CLASS_LOAD_ERR = 'comp-stat-err';
+			const CLASS_LOADED = 'comp-stat-loaded';
+			const wrapper = mount(LazyComp);
+
+			const { vm } = wrapper;
+			const { $lazy } = vm.c();
+			// Default not load
+			expect(wrapper.element.className).to.be.equal(CLASS_NOT_LOAD);
+			expect($lazy.stat).to.be.equal(STAT_NOT_LOAD);
+
+			// Loading
+			wrapper.setProps({
+				stat: COMP_LOADING,
+			});
+			expect(wrapper.element.className).to.be.equal(CLASS_LOADING);
+			expect($lazy.stat).to.be.equal(STAT_LOADING);
+
+			// Load error
+			wrapper.setProps({
+				stat: COMP_ERR,
+			});
+			expect(wrapper.element.className).to.be.equal(CLASS_LOAD_ERR);
+			expect($lazy.stat).to.be.equal(STAT_LOADED);
+			expect(!!$lazy.destroyed).to.be.equal(false);
+
+			// Loaded
+			wrapper.setProps({
+				stat: COMP_LOADED,
+			});
+			expect(wrapper.element.className).to.be.equal(CLASS_LOADED);
+			expect($lazy.stat).to.be.equal(STAT_LOADED);
+			expect(!!$lazy.destroyed).to.be.equal(true);
 		});
 
-		it('prop classes specified', () =>{
+		it('prop classes specified', () => {
+			const CLASS_NOT_LOAD = 'custom-not-load';
+			const CLASS_LOADING = 'custom-loading';
+			const CLASS_LOAD_ERR = 'custom-err';
+			const CLASS_LOADED = 'custom-loaded';
+			const wrapper = mount(LazyComp, {
+				propsData: {
+					opts: {
+						classNotLoad: CLASS_NOT_LOAD,
+						classLoading: CLASS_LOADING,
+						classErr: CLASS_LOAD_ERR,
+						classLoaded: CLASS_LOADED,
+					},
+				},
+			});
+
+			// Default not load
+			expect(wrapper.element.className).to.be.equal(CLASS_NOT_LOAD);
+
+			// Loading
+			wrapper.setProps({
+				stat: COMP_LOADING,
+			});
+			expect(wrapper.element.className).to.be.equal(CLASS_LOADING);
+
+			// Load error
+			wrapper.setProps({
+				stat: COMP_ERR,
+			});
+			expect(wrapper.element.className).to.be.equal(CLASS_LOAD_ERR);
+
+			// Loaded
+			wrapper.setProps({
+				stat: COMP_LOADED,
+			});
+			expect(wrapper.element.className).to.be.equal(CLASS_LOADED);
 		});
 
-		it('prop loadHandler default', () =>{
+		it('prop opts onInView', () => {
+			const { LazyLoader } = resetFakeStubAndStubRealLazyLoader();
+			const $rootLazy = new LazyLoader({ isRoot: true });
+			const spiedOnInView = sinon.spy(noop);
+			const wrapper = mount(LazyComp, {
+				propsData: {
+					opts: {
+						onInView: spiedOnInView,
+					},
+				},
+			});
+			const { vm } = wrapper;
+			const { $lazy: _$lazy } = vm.c();
+
+			// Stub inView
+			_$lazy.inView = () => true;
+			expect(spiedOnInView).to.have.been.callCount(0);
+
+			// Simulate scroll
+			_$lazy.check();
+			let callArgs = spiedOnInView.getCall(0).args[0];
+			let { $lazy, endCheck } = callArgs;
+			expect($lazy).to.be.equal(_$lazy);
+			assert.isFunction(endCheck);
+
+			// Simulate multiple scroll triggering
+			_$lazy.check();
+			callArgs = spiedOnInView.getCall(1).args[0];
+			({ $lazy, endCheck } = callArgs);
+			// It should not be destoryed before endCheck is called
+			expect(!!$lazy.destroyed).to.be.equal(false);
+			endCheck();
+			expect(!!$lazy.destroyed).to.be.equal(true);
 		});
 
-		it('prop loadHandler specified', () =>{
+		it('slots loading and not-load', () => {
+			const TestComp = {
+				template: `
+					<div>
+						<lazy-comp :stat="stat">
+							<div id="slotNotLoad" slot="not-load"></div>
+							<div id="slotLoading" slot="loading"></divi>
+						</lazy-comp>
+					</div>
+				`,
+				components: {
+					LazyComp,
+				},
+				data() {
+					return {
+						stat: STAT_NOT_LOAD,
+					};
+				},
+				methods: {
+					setLoading() {
+						const $vm = this;
+						$vm.stat = STAT_LOADING;
+					},
+				},
+			};
+			const wrapper = mount(TestComp);
+			const { vm, element } = wrapper;
+			const $wrapper = $(element);
+			expect($wrapper.find('#slotNotLoad').length).to.be.equal(1);
+			expect($wrapper.find('#slotLoading').length).to.be.equal(0);
+			// TODO
 		});
 
-		it('prop onInView', () =>{
+		it('slots err and not-load', () => {
 		});
 
-		it('prop stat changes', () => {
+		it('slots default and not-load', () => {
 		});
 
-		it('slots not-load', () => {
+		it('All slots with bug regression of lost of event listeners when exposing methods to change data inside the child component', () => {
 		});
 
-		it('slots loading', () => {
+		it('method setLoaderLoading and resetLoaderLoad', () => {
+			const { LazyLoader } = resetFakeStubAndStubRealLazyLoader();
+			const $rootLazy = new LazyLoader({ isRoot: true });
+
+			const wrapper = mount(LazyComp);
+			const { vm } = wrapper;
+			vm.setLoaderLoading();
+			const { $lazy } = vm.c();
+			expect($lazy.stat).to.be.equal(STAT_LOADING);
+
+			vm.resetLoaderLoad();
+			expect($lazy.stat).to.be.equal(STAT_NOT_LOAD);
 		});
 
-		it('slots err', () => {
+		it('method setLoaderLoadErr and resetLoaderLoad', () => {
+			const { LazyLoader } = resetFakeStubAndStubRealLazyLoader();
+			const $rootLazy = new LazyLoader({ isRoot: true });
+
+			const wrapper = mount(LazyComp);
+			const { vm } = wrapper;
+			vm.setLoaderLoadErr();
+			const { $lazy } = vm.c();
+			expect($lazy.stat).to.be.equal(STAT_LOADED);
+
+			vm.resetLoaderLoad();
+			expect($lazy.stat).to.be.equal(STAT_NOT_LOAD);
 		});
 
-		it('slots default', () => {
-		});
+		it('method setLoaderLoaded and resetLoaderLoad', () => {
+			const { LazyLoader } = resetFakeStubAndStubRealLazyLoader();
+			const $rootLazy = new LazyLoader({ isRoot: true });
 
-		it('method setLoading', () => {
-		});
+			const wrapper = mount(LazyComp);
+			const { vm } = wrapper;
+			const { $lazy } = vm.c();
+			vm.setLoaderLoaded();
+			expect($lazy.stat).to.be.equal(STAT_LOADED);
 
-		it('method setLoadErr', () => {
-		});
-
-		it('method setLoaded', () => {
-		});
-
-		it('method resetLoad', () => {
+			// Not work because the $lazy was destroyed
+			vm.resetLoaderLoad();
+			expect($lazy.stat).to.be.equal(STAT_LOADED);
 		});
 	});
 });

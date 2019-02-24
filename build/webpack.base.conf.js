@@ -10,7 +10,7 @@ const webpack = require('webpack'),
 	projectSrc = path.resolve(projectRoot, 'src'),
 	projectDemo = path.resolve(projectRoot, 'demo');
 
-const { isProduction } = utils;
+const { isProduction, isTest, useCoverage } = utils;
 
 module.exports = {
 	entry: {
@@ -66,12 +66,21 @@ module.exports = {
 			},
 			{
 				test: /\.js$/,
-				loader: 'babel-loader',
 				include: [
 					projectSrc,
 					projectDemo,
 				],
 				exclude: /node_modules/,
+				use: (useCoverage() ? [
+					/*
+					  By using this loader instead of using the babel-plugin-istanbul can prevent html reporter from
+					  throwing "no such a file or directory" caused by strange query suffix of Vue's single file component,
+					  which is added by vue-loader^15.
+					*/
+					'istanbul-instrumenter-loader',
+				] : []).concat([
+					'babel-loader',
+				]),
 			},
 		],
 	},

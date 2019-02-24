@@ -46,6 +46,14 @@ let scope;
 let LazyLoader;
 let $rootLazy;
 
+let _waitPromiseResolve = null;
+let waitPromise = null;
+function makeNewWaitScrollPromise() {
+	waitPromise = new Promise((res) => {
+		_waitPromiseResolve = res;
+	});
+}
+
 function setupLazyLoader(_scope = {}) {
 	LazyLoader = LazyClass(_scope);
 	scope = _scope;
@@ -1446,6 +1454,42 @@ describe('LazyClass', () => {
 					$spacerOfWinHeight0 = null;
 					cleanLoadHandlerPromise();
 					destroyRootLazy();
+				});
+
+				it('loadHandler should be triggered multiple times when it is continuous scrolling and loading status does\'t changed.', async () => {
+					const $lazyEl0 = createLazyEl();
+					$div.append($lazyEl0)
+						.append($spacerOfWinHeight0);
+
+					const spiedLoadHandler = sinon.spy(() => {
+						if (_waitPromiseResolve) {
+							_waitPromiseResolve();
+							_waitPromiseResolve = null;
+						}
+						else {
+							throw new Error('WaitScrollPromise was consumed!');
+						}
+					});
+					const lazy0 = new LazyLoader({
+						el: $lazyEl0[0],
+						events: [EV_SCROLL],
+						loadHandler: spiedLoadHandler,
+						throttleTime: 0,
+					});
+
+					expect(spiedLoadHandler).to.have.been.callCount(0);
+					makeNewWaitScrollPromise();
+					window.scrollTo(0, 1);
+					await waitPromise;
+					waitPromise = null;
+
+					expect(spiedLoadHandler).to.have.been.callCount(1);
+					makeNewWaitScrollPromise();
+					window.scrollTo(0, 2);
+					await waitPromise;
+					waitPromise = null;
+
+					expect(spiedLoadHandler).to.have.been.callCount(2);
 				});
 
 				it('Parent is not root and it\'s not in view initially', async () => {

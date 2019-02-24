@@ -27,10 +27,11 @@
 				type: Object,
 			},
 			/*
-				There's a bug in Vue. If you provide some methods for outside components to change the stat of data,
+				There's a bug in Vue. If you provide some methods for outside components to change the stat of "data",
 				you will lose some event listeners after you change the stat to another and change it back
 				(eg. The methods of @event won't be triggered after it's changed back).
-				So I have to design a prop as the switcher of slots.
+				So I have to design a prop as the switcher of slots. And to control the stat of LazyLoader,
+				you will have to call the "setLoaderLoading", "setLoaderLoadErr", "setLoaderLoaded" or "resetLoaderLoad" in the "onInView" callback.
 				The initial stat MUST be COMP_NOT_LOAD and the stat SHOULD NOT be changed until this component is mounted for InViewComp's initialization.
 		   */
 			stat: {
@@ -79,7 +80,7 @@
 					classErr: 'comp-stat-err',
 					classLoaded: 'comp-stat-loaded',
 				}, $vm.opts, {
-					loadHandler: $vm.loadHandler,
+					loadHandler: $vm._loadHandler,
 				});
 			},
 		},
@@ -88,17 +89,17 @@
 				const $vm = this;
 				switch (v) {
 					case COMP_LOADING:
-						$vm.setLoading();
+						$vm.setLoaderLoading();
 						break;
 					case COMP_ERR:
-						$vm.setLoadErr();
+						$vm.setLoaderLoadErr();
 						break;
 					case COMP_LOADED:
-						$vm.setLoaded();
+						$vm.setLoaderLoaded();
 						break;
 					case COMP_NOT_LOAD:
 					default:
-						$vm.resetLoad();
+						$vm.resetLoaderLoad();
 				}
 			},
 		},
@@ -106,7 +107,7 @@
 			c() {
 				return this.$refs.c;
 			},
-			loadHandler(params) {
+			_loadHandler(params) {
 				const { $lazy, endCheck } = params;
 				const $vm = this;
 				const { opts } = $vm;
@@ -116,21 +117,21 @@
 					endCheck,
 				});
 			},
-			setLoading() {
+			setLoaderLoading() {
 				const $vm = this;
 				const { $lazy } = $vm.c();
 				if ($lazy) {
 					$lazy.stat = STAT_LOADING;
 				}
 			},
-			setLoadErr() {
+			setLoaderLoadErr() {
 				const $vm = this;
 				const { $lazy } = $vm.c();
 				if ($lazy) {
 					$lazy.stat = STAT_LOADED;
 				}
 			},
-			setLoaded() {
+			setLoaderLoaded() {
 				const $vm = this;
 				const { $lazy, endCheck } = $vm.c();
 				if ($lazy) {
@@ -139,7 +140,7 @@
 					endCheck();
 				}
 			},
-			resetLoad() {
+			resetLoaderLoad() {
 				const $vm = this;
 				const { $lazy } = $vm.c();
 				if ($lazy) {
