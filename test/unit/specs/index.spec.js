@@ -3,6 +3,7 @@ import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import noop from 'lodash/noop';
 import $ from 'jquery';
+import BlueBird from 'bluebird';
 
 import {
 	__RewireAPI__ as IndexRewireAPI,
@@ -32,6 +33,8 @@ let scope = null;
 
 let _waitPromiseResolve = null;
 let waitPromise = null;
+
+const EV_CLICK = 'click';
 
 function makeNewWaitScrollPromise() {
 	waitPromise = new Promise((res) => {
@@ -448,9 +451,24 @@ describe('index', () => {
 			resetInstall();
 		});
 
-		describe('props', () => {
+		describe('props and slots', () => {
 			afterEach(() => {
 				StubLazyLoader.resetHistory();
+			});
+
+			it('Default slot', () => {
+				const TestComp = {
+					template: `
+						<lazy-ref>
+							<div id="slot"></div>
+						</lazy-ref>
+					`,
+					components: {
+						LazyRef,
+					},
+				};
+				const wrapper = mount(TestComp);
+				expect($(wrapper.element).find('#slot').length).to.be.equal(1);
 			});
 
 			it('tag default', () => {
@@ -563,6 +581,21 @@ describe('index', () => {
 			StubLazyLoader.resetHistory();
 		});
 
+		it('Default slot', () => {
+			const TestComp = {
+				template: `
+						<in-view-comp>
+							<div id="slot"></div>
+						</in-view-comp>
+					`,
+				components: {
+					InViewComp,
+				},
+			};
+			const wrapper = mount(TestComp);
+			expect($(wrapper.element).find('#slot').length).to.be.equal(1);
+		});
+
 		it('mounted with default option', () => {
 			function foo() {
 			}
@@ -590,12 +623,12 @@ describe('index', () => {
 		});
 
 		it('Specified loadHandler', () => {
-			const spiedLoadHandler = sinon.spy(noop);
+			const spiedOnInView = sinon.spy(noop);
 
 			const wrapper = mount(InViewComp, {
 				propsData: {
 					opts: {
-						loadHandler: spiedLoadHandler,
+						onInView: spiedOnInView,
 					},
 				},
 			});
@@ -616,7 +649,7 @@ describe('index', () => {
 			// Manually call patched loadHandler
 			loadHandler();
 
-			expect(spiedLoadHandler.getCall(0).args[0]).to.eql({
+			expect(spiedOnInView.getCall(0).args[0]).to.eql({
 				$lazy,
 				endCheck: vm.endCheck,
 			});
@@ -731,10 +764,10 @@ describe('index', () => {
 			const wrapper = mount(LazyComp, {
 				propsData: {
 					opts: {
-						classNotLoad: CLASS_NOT_LOAD,
-						classLoading: CLASS_LOADING,
-						classErr: CLASS_LOAD_ERR,
-						classLoaded: CLASS_LOADED,
+						classCompNotLoad: CLASS_NOT_LOAD,
+						classCompLoading: CLASS_LOADING,
+						classCompErr: CLASS_LOAD_ERR,
+						classCompLoaded: CLASS_LOADED,
 					},
 				},
 			});
@@ -796,16 +829,166 @@ describe('index', () => {
 			expect(!!$lazy.destroyed).to.be.equal(true);
 		});
 
+		const LAZY_COMP_STAT_MIXIN = {
+			methods: {
+				setLoading() {
+					const $vm = this;
+					$vm.stat = COMP_LOADING;
+				},
+				setNotLoad() {
+					const $vm = this;
+					$vm.stat = COMP_NOT_LOAD;
+				},
+				setLoaded() {
+					const $vm = this;
+					$vm.stat = COMP_LOADED;
+				},
+				setLoadErr() {
+					const $vm = this;
+					$vm.stat = COMP_ERR;
+				},
+			},
+		};
+
 		it('slots loading and not-load', () => {
 			const TestComp = {
 				template: `
 					<div>
 						<lazy-comp :stat="stat">
 							<div id="slotNotLoad" slot="not-load"></div>
-							<div id="slotLoading" slot="loading"></divi>
+							<div id="slotLoading" slot="loading"></div>
 						</lazy-comp>
 					</div>
 				`,
+				mixins: [LAZY_COMP_STAT_MIXIN],
+				components: {
+					LazyComp,
+				},
+				data() {
+					return {
+						stat: STAT_NOT_LOAD,
+					};
+				},
+			};
+			const wrapper = mount(TestComp);
+			const { vm, element } = wrapper;
+			const $wrapper = $(element);
+			let $slotNotLoad = $wrapper.find('#slotNotLoad');
+			let $slotLoading = $wrapper.find('#slotLoading');
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotLoading.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+
+			vm.setLoading();
+			$slotNotLoad = $wrapper.find('#slotNotLoad');
+			$slotLoading = $wrapper.find('#slotLoading');
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotLoading.length).to.be.equal(1);
+			expect($slotLoading.siblings().length).to.be.equal(0);
+
+			vm.setNotLoad();
+			$slotNotLoad = $wrapper.find('#slotNotLoad');
+			$slotLoading = $wrapper.find('#slotLoading');
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotLoading.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+		});
+
+		it('slots err and not-load', () => {
+			const TestComp = {
+				template: `
+					<div>
+						<lazy-comp :stat="stat">
+							<div id="slotNotLoad" slot="not-load"></div>
+							<div id="slotErr" slot="err"></div>
+						</lazy-comp>
+					</div>
+				`,
+				mixins: [LAZY_COMP_STAT_MIXIN],
+				components: {
+					LazyComp,
+				},
+				data() {
+					return {
+						stat: STAT_NOT_LOAD,
+					};
+				},
+			};
+			const wrapper = mount(TestComp);
+			const { vm, element } = wrapper;
+			const $wrapper = $(element);
+			let $slotNotLoad = $wrapper.find('#slotNotLoad');
+			let $slotErr = $wrapper.find('#slotErr');
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotErr.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+
+			vm.setLoadErr();
+			$slotNotLoad = $wrapper.find('#slotNotLoad');
+			$slotErr = $wrapper.find('#slotErr');
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotErr.length).to.be.equal(1);
+			expect($slotErr.siblings().length).to.be.equal(0);
+
+			vm.setNotLoad();
+			$slotNotLoad = $wrapper.find('#slotNotLoad');
+			$slotErr = $wrapper.find('#slotErr');
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotErr.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+		});
+
+		it('slots loaded and not-load', () => {
+			const TestComp = {
+				template: `
+					<div>
+						<lazy-comp :stat="stat">
+							<div id="slotNotLoad" slot="not-load"></div>
+							<div id="slotLoaded"></div>
+						</lazy-comp>
+					</div>
+				`,
+				mixins: [LAZY_COMP_STAT_MIXIN],
+				components: {
+					LazyComp,
+				},
+				data() {
+					return {
+						stat: STAT_NOT_LOAD,
+					};
+				},
+			};
+			const wrapper = mount(TestComp);
+			const { vm, element } = wrapper;
+			const $wrapper = $(element);
+			let $slotNotLoad = $wrapper.find('#slotNotLoad');
+			let $slotLoaded = $wrapper.find('#slotLoaded');
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotLoaded.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+
+			vm.setLoaded();
+			$slotNotLoad = $wrapper.find('#slotNotLoad');
+			$slotLoaded = $wrapper.find('#slotLoaded');
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotLoaded.length).to.be.equal(1);
+			expect($slotLoaded.siblings().length).to.be.equal(0);
+		});
+
+		it('All slots with grandchildren slots and bug regression test of lost of event listeners when exposing methods to change data inside the child component', () => {
+			const spiedOnClick = sinon.spy(noop);
+			const TestComp = {
+				template: `
+					<div>
+						<lazy-comp :stat="stat">
+							<div id="slotNotLoad" slot="not-load"><button @click="onClickTest" id="grandNotLoad"></button></div>
+							<div id="slotLoadErr" slot="err"><button @click="onClickTest" id="grandLoadErr"></button></div>
+							<div id="slotLoading" slot="loading"><button @click="onClickTest" id="grandLoading"></button></div>
+							<div id="slotLoaded"><button @click="onClickTest" id="grandLoaded"></button></div>
+						</lazy-comp>
+					</div>
+				`,
+				mixins: [LAZY_COMP_STAT_MIXIN],
 				components: {
 					LazyComp,
 				},
@@ -815,27 +998,98 @@ describe('index', () => {
 					};
 				},
 				methods: {
-					setLoading() {
-						const $vm = this;
-						$vm.stat = STAT_LOADING;
-					},
+					onClickTest: spiedOnClick,
 				},
 			};
+
 			const wrapper = mount(TestComp);
 			const { vm, element } = wrapper;
 			const $wrapper = $(element);
-			expect($wrapper.find('#slotNotLoad').length).to.be.equal(1);
-			expect($wrapper.find('#slotLoading').length).to.be.equal(0);
-			// TODO
-		});
+			let $slotNotLoad = null;
+			let $slotLoading = null;
+			let $slotLoadErr = null;
+			let $slotLoaded = null;
+			let $grandNotLoad = null;
+			let $grandLoading = null;
+			let $grandLoadErr = null;
+			let $grandLoaded = null;
 
-		it('slots err and not-load', () => {
-		});
+			function reFindElements() {
+				$slotNotLoad = $wrapper.find('#slotNotLoad');
+				$slotLoading = $wrapper.find('#slotLoading');
+				$slotLoadErr = $wrapper.find('#slotLoadErr');
+				$slotLoaded = $wrapper.find('#slotLoaded');
 
-		it('slots default and not-load', () => {
-		});
+				$grandNotLoad = $wrapper.find('#grandNotLoad');
+				$grandLoading = $wrapper.find('#grandLoading');
+				$grandLoadErr = $wrapper.find('#grandLoadErr');
+				$grandLoaded = $wrapper.find('#grandLoaded');
+			}
 
-		it('All slots with bug regression of lost of event listeners when exposing methods to change data inside the child component', () => {
+			// Not load
+			reFindElements();
+			$grandNotLoad.trigger(EV_CLICK);
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotLoading.length).to.be.equal(0);
+			expect($slotLoadErr.length).to.be.equal(0);
+			expect($slotLoaded.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+			expect(spiedOnClick).to.have.been.callCount(1);
+
+			// Loading
+			vm.setLoading();
+			reFindElements();
+			$grandLoading.trigger(EV_CLICK);
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotLoading.length).to.be.equal(1);
+			expect($slotLoadErr.length).to.be.equal(0);
+			expect($slotLoaded.length).to.be.equal(0);
+			expect($slotLoading.siblings().length).to.be.equal(0);
+			expect(spiedOnClick).to.have.been.callCount(2);
+
+			// Load Error
+			vm.setLoadErr();
+			reFindElements();
+			$grandLoadErr.trigger(EV_CLICK);
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotLoading.length).to.be.equal(0);
+			expect($slotLoadErr.length).to.be.equal(1);
+			expect($slotLoaded.length).to.be.equal(0);
+			expect($slotLoading.siblings().length).to.be.equal(0);
+			expect(spiedOnClick).to.have.been.callCount(3);
+
+			// Reset to not-load
+			vm.setNotLoad();
+			reFindElements();
+			$grandNotLoad.trigger(EV_CLICK);
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($slotLoading.length).to.be.equal(0);
+			expect($slotLoadErr.length).to.be.equal(0);
+			expect($slotLoaded.length).to.be.equal(0);
+			expect($slotNotLoad.siblings().length).to.be.equal(0);
+			expect(spiedOnClick).to.have.been.callCount(4);
+
+			// Retry and Loading
+			vm.setLoading();
+			reFindElements();
+			$grandLoading.trigger(EV_CLICK);
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotLoading.length).to.be.equal(1);
+			expect($slotLoadErr.length).to.be.equal(0);
+			expect($slotLoaded.length).to.be.equal(0);
+			expect($slotLoading.siblings().length).to.be.equal(0);
+			expect(spiedOnClick).to.have.been.callCount(5);
+
+			// Loaded
+			vm.setLoaded();
+			reFindElements();
+			$grandLoaded.trigger(EV_CLICK);
+			expect($slotNotLoad.length).to.be.equal(0);
+			expect($slotLoading.length).to.be.equal(0);
+			expect($slotLoadErr.length).to.be.equal(0);
+			expect($slotLoaded.length).to.be.equal(1);
+			expect($slotLoading.siblings().length).to.be.equal(0);
+			expect(spiedOnClick).to.have.been.callCount(6);
 		});
 
 		it('method setLoaderLoading and resetLoaderLoad', () => {

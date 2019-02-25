@@ -45,8 +45,144 @@ Vue.use(VueLLazyload, config);
 </lazy-ref>
 ```
 
+## Constants
+
+
 ## Config
+### Notes about Config
+Note that **ALL ANCESTORS' CONFIGS WILL BE INHERITED** level by level.
+So be careful there may be conflict problems if you use too many ancestors' configs!
+
+### <span id="config">Available Config Table</span>
 <table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th style="width: 100px;">Name</th>
+            <th style="width: 50px;">Type</th>
+            <th style="width: 50px;">Default</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>events</td>
+            <td>String or Array&lt;String&gt;</td>
+            <td>scroll</td>
+            <td>
+                Events to be bound with.
+            </td>
+        </tr>
+        <tr>
+            <td>preloadRatio</td>
+            <td>Number</td>
+            <td>1</td>
+            <td>
+                The "resize" ratio of parent view when it's children views compare with it.
+            </td>
+        </tr>
+        <tr>
+            <td>onEnter</td>
+            <td>Function</td>
+            <td>-</td>
+            <td>
+                It will be triggered if the element enters the sight. The argument will be a object:
+<pre>{
+    // The LazyLoader
+    $lazy,
+}</pre>
+            </td>
+        </tr>
+        <tr>
+            <td>onLeave</td>
+            <td>Function</td>
+            <td>-</td>
+            <td>
+                It will be triggered if the element leaves the sight. The argument will be a object:
+<pre>{
+    // The LazyLoader
+    $lazy,
+}</pre>
+            </td>
+        </tr>
+        <tr>
+            <td>filters</td>
+            <td>Array&lt;Function&gt;</td>
+            <td>-</td>
+            <td>
+            </td>
+        </tr>
+        <tr>
+            <td>throttleMethod</td>
+            <td>String</td>
+            <td>debounce</td>
+            <td>
+                Throttling method. Available values: "debounce", "throttle"
+            </td>
+        </tr>
+        <tr>
+            <td>throttleTime</td>
+            <td>Interger</td>
+            <td>250</td>
+            <td>
+                Throttling time in ms.
+            </td>
+        </tr>
+        <tr>
+            <td>regGlobal</td>
+            <td>Boolean</td>
+            <td>true</td>
+            <td>
+                Whether to register the directive "lazy" and components "lazy-ref" globally or not.<br>
+                Only available for global config.
+            </td>
+        </tr>
+    </tobdy>
+</table>    
+[1]: All options will inherit its ancestors' options except for [2].
+[2]: These options won't be inherited.
+
+## Methods
+### $lazy (Instance of LazyLoader, available for LazyRef and InViewComp)
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th style="width: 100px;">Name</th>
+            <th>Arguments</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>check</td>
+            <td>-</td>
+            <td>Manually check and load itself and its children loaders which haven't loaded.</td>
+        </tr>
+    </tbody>
+</table>
+
+## Directives
+### Lazy(v-lazy)
+#### value
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th style="width: 50px;">Type</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>String or Object</td>
+            <td>
+                If the value is an Object, it has the same spec as config with extra config.
+                If the value is a String, it will be used as `src` of config
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+#### Extra config for the Value of Lazy
+<table>
     <thead>
         <tr>
             <th style="width: 100px;">Name</th>
@@ -61,39 +197,60 @@ Vue.use(VueLLazyload, config);
             <td>String</td>
             <td>`null`</td>
             <td>
-                The name of parent view (lazy-ref component or window).
-                If it's not specified, it will be the window.
+                The name of parent view (lazy-ref component or window).<br>
+                If it's not specified, it will be the window.<br>
+                By now, it only supports one level of LazyRef parent.
             </td>
         </tr>
         <tr>
             <td>src<sup>[2]</sup></td>
             <td>String</td>
             <td>''</td>
-            <td>The resource url going to be loaded.</td>
+            <td>
+                The resource url going to be loaded. <br>
+                Only available for Lazy.
+            </td>
         </tr>
         <tr>
-            <td>events</td>
-            <td>String or Array&lt;String&gt;</td>
-            <td>scroll</td>
-            <td>Events to be bound with </td>
+            <td>retry</td>
+            <td>Integer or Function</td>
+            <td>0</td>
+            <td>
+                If it's a number, it will be the retry amount, 0 for no retry, -1 for infinite retry. <br>
+            </td>
         </tr>
         <tr>
             <td>classLoading</td>
             <td>String</td>
-            <td>lazy-loading</td>
-            <td>Class name of loading</td>
+            <td>
+                lazy-loading
+            </td>
+            <td>
+                Class name of loading <br>
+                Only available for Lazy.
+            </td>
         </tr>
         <tr>
             <td>classLoaded</td>
             <td>String</td>
-            <td>lazy-loaded</td>
-            <td>Class name of loaded</td>
+            <td>
+                lazy-loaded
+            </td>
+            <td>
+                Class name of loaded <br>
+                Only available for Lazy.
+            </td>
         </tr>
         <tr>
             <td>classErr</td>
             <td>String</td>
-            <td>lazy-err</td>
-            <td>Class name of load error</td>
+            <td>
+                lazy-err
+            </td>
+            <td>
+                Class name of load error <br>
+                Only available for Lazy.
+            </td>
         </tr>
         <tr>
             <td>classTarget</td>
@@ -106,89 +263,53 @@ Vue.use(VueLLazyload, config);
             </td>
         </tr>
         <tr>
-            <td>retry</td>
-            <td>Integer</td>
-            <td>0</td>
-            <td>Retry amount, 0 for no retry, -1 for infinite retry.</td>
-        </tr>
-        <tr>
             <td>once</td>
             <td>Boolean</td>
             <td>true</td>
-            <td>Remove listener after it has loaded if it is set to true.</td>
-        </tr>
-        <tr>
-            <td>preloadRatio</td>
-            <td>Number</td>
-            <td>1</td>
-            <td>The "resize" ratio of parent view when it's children views compare with it.</td>
+            <td>
+                Remove listener after it has loaded if it is set to true.<br>
+            </td>
         </tr>
         <tr>
             <td>mode</td>
             <td>String</td>
             <td>-</td>
             <td>
-                The mode the lazyload.
-                If it's set to 'bg', the resource will be loaded as a background image.
-                By default, it will be set as the "src" attribute of the element.
+                The mode the lazyload.<br>
+                If it's set to 'bg', the resource will be loaded as a background image. <br>
+                By default, it will be set as the "src" attribute of the element. <br>
+                Only available for Lazy and LazyRef.
             </td>
         </tr>
         <tr>
-            <td>regGlobal</td>
-            <td>Boolean</td>
-            <td>true</td>
+            <td>onLoad</td>
+            <td>Function</td>
+            <td>-</td>
             <td>
-                Whether register the directives and components globally or not.
             </td>
         </tr>
-    </tobdy>
-</table>    
-[1]: All options should not be changed after they have initialized except for [2].  
-[2]: It will mark the node not loaded and load again when it's in parent view. if `once` is set to `false`.  
+        <tr>
+            <td>onErr</td>
+            <td>Function</td>
+            <td>-</td>
+            <td>
+            </td>
+        </tr>
+        <tr>
+            <td>onReq</td>
+            <td>Function</td>
+            <td>-</td>
+            <td>
+            </td>
+        </tr>
+    </tbody>
+</table>
+[1]: All options should not be changed after they have initialized except for [2].
+[2]: It will mark the node not loaded and load again when it's in parent view. if `once` is set to `false`.
 [3]: All options will inherit its ancestors' options.
 
-## Methods
-### $lazy
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th style="width: 100px;">Name</th>
-            <th>Arguments</th>
-            <th>Description</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>check</td>
-            <td>-</td>
-            <td>Manually check and load itself and its children elements which haven't loaded.</td>
-        </tr>
-    </tbody>
-</table>
-
-## Directives
-### v-lazy
-#### value
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th style="width: 50px;">Type</th>
-            <th>Description</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>String or Object</td>
-            <td>
-                If the value is an Object, it has the same spec as config.
-                If the value is a String, it will be used as `src` of config
-            </td>
-        </tr>
-    </tbody>
-</table>
-
 ## Components
-### lazy-ref
+### LazyRef(lazy-ref, Experimental)
 <table class="table table-bordered table-striped">
     <thead>
         <tr>
@@ -209,11 +330,100 @@ Vue.use(VueLLazyload, config);
             <td>opts</td>
             <td>Object</td>
             <td>null</td>
-            <td>It has the same spec as config</td>
+            <td>See <a href="#config">config</a>. And it can be used a parent option to be inherited.</td>
+        </tr>
+    </tbody>
+</table>
+
+### InViewComp
+#### Extra config for `opts` InViewComp
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th style="width: 100px;">Name</th>
+            <th style="width: 50px;">Type</th>
+            <th style="width: 50px;">Default</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>onInView</td>
+            <td>Function</td>
+            <td>-</td>
+            <td>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### LazyComp
+#### Extra config for `opts` LazyComp
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th style="width: 100px;">Name</th>
+            <th style="width: 50px;">Type</th>
+            <th style="width: 50px;">Default</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>classCompLoading</td>
+            <td>String</td>
+            <td>
+                comp-stat-loading
+            </td>
+            <td>
+                Class name of loading <br>
+                Only available for LazyComp.
+            </td>
+        </tr>
+        <tr>
+            <td>classCompLoaded</td>
+            <td>String</td>
+            <td>
+                comp-stat-loaded
+            </td>
+            <td>
+                Class name of loaded <br>
+                Only available for LazyComp.
+            </td>
+        </tr>
+        <tr>
+            <td>classCompErr</td>
+            <td>String</td>
+            <td>
+                comp-stat-err
+            </td>
+            <td>
+                Class name of load error <br>
+                Only available for LazyComp.
+            </td>
+        </tr>
+        <tr>
+            <td>classCompNotLoad</td>
+            <td>String</td>
+            <td>
+                comp-stat-err
+            </td>
+            <td>
+                Class name of load error <br>
+                Only available for LazyComp.
+            </td>
+        </tr>
+        <tr>
+            <td>onInView</td>
+            <td>Function</td>
+            <td>-</td>
+            <td>
+            </td>
         </tr>
     </tbody>
 </table>
 
 ## Well, what's next?
-- More options for configuration
-- Supplements of test cases
+- More abilities
+- More test cases
+- Performance optimization

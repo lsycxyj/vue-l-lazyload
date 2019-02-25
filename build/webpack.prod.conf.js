@@ -1,17 +1,25 @@
-var path = require('path'),
+const path = require('path'),
 	utils = require('./utils'),
 	config = require('./conf'),
 	webpack = require('webpack'),
 	UglifyJsPlugin = require('uglifyjs-webpack-plugin'),
 	webpackMerge = require('webpack-merge'),
 	baseWebpackConfig = require('./webpack.base.conf.js'),
-	CompressionWebpackPlugin = require('compression-webpack-plugin'),
-	webpackConfig = webpackMerge(baseWebpackConfig, {
-		entry: {
-			main: './src/index.js',
-		},
-		devtool: 'sourcemap',
-		mode: 'production',
+	CompressionWebpackPlugin = require('compression-webpack-plugin');
+
+const baseWebpackProdConfig = webpackMerge(baseWebpackConfig, {
+	entry: {
+		main: './src/index.js',
+	},
+	devtool: 'sourcemap',
+	mode: 'production',
+});
+
+delete baseWebpackProdConfig.entry.app;
+
+module.exports = [
+	// Minified UMD build
+	webpackMerge(baseWebpackProdConfig, {
 		output: {
 			path: config.path.dist,
 			filename: '[name].js',
@@ -52,8 +60,5 @@ var path = require('path'),
 				minRatio: 0.8,
 			}),
 		],
-	});
-
-delete webpackConfig.entry.app;
-
-module.exports = webpackConfig;
+	}),
+];

@@ -31,8 +31,9 @@
 				you will lose some event listeners after you change the stat to another and change it back
 				(eg. The methods of @event won't be triggered after it's changed back).
 				So I have to design a prop as the switcher of slots. And to control the stat of LazyLoader,
-				you will have to call the "setLoaderLoading", "setLoaderLoadErr", "setLoaderLoaded" or "resetLoaderLoad" in the "onInView" callback.
-				The initial stat MUST be COMP_NOT_LOAD and the stat SHOULD NOT be changed until this component is mounted for InViewComp's initialization.
+				you will have to change the props "stat" in the "onInView" callback.
+				The initial stat MUST be COMP_NOT_LOAD and the stat SHOULD NOT be changed
+				until this component is mounted for InViewComp's LazyLoader's initialization.
 		   */
 			stat: {
 				type: Number,
@@ -57,17 +58,17 @@
 				const opts = $vm.cOpts;
 				switch ($vm.stat) {
 					case COMP_LOADING:
-						_class[opts.classLoading] = true;
+						_class[opts.classCompLoading] = true;
 						break;
 					case COMP_LOADED:
-						_class[opts.classLoaded] = true;
+						_class[opts.classCompLoaded] = true;
 						break;
 					case COMP_ERR:
-						_class[opts.classErr] = true;
+						_class[opts.classCompErr] = true;
 						break;
 					case COMP_NOT_LOAD:
 					default:
-						_class[opts.classNotLoad] = true;
+						_class[opts.classCompNotLoad] = true;
 						break;
 				}
 				return _class;
@@ -75,13 +76,12 @@
 			cOpts() {
 				const $vm = this;
 				return Object.assign({
-					classNotLoad: 'comp-stat-not-load',
-					classLoading: 'comp-stat-loading',
-					classErr: 'comp-stat-err',
-					classLoaded: 'comp-stat-loaded',
-				}, $vm.opts, {
-					loadHandler: $vm._loadHandler,
-				});
+          // Use class names which are different from Lazy to avoid extension of ascendants' options
+					classCompNotLoad: 'comp-stat-not-load',
+					classCompLoading: 'comp-stat-loading',
+					classCompErr: 'comp-stat-err',
+					classCompLoaded: 'comp-stat-loaded',
+				}, $vm.opts);
 			},
 		},
 		watch: {
@@ -106,16 +106,6 @@
 		methods: {
 			c() {
 				return this.$refs.c;
-			},
-			_loadHandler(params) {
-				const { $lazy, endCheck } = params;
-				const $vm = this;
-				const { opts } = $vm;
-				const { onInView } = opts;
-				onInView && onInView({
-					$lazy,
-					endCheck,
-				});
 			},
 			setLoaderLoading() {
 				const $vm = this;

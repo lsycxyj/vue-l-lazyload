@@ -28,10 +28,10 @@
 				endCheck: $vm.endCheck,
 			};
 
-			const { loadHandler } = _opts;
-			if (loadHandler) {
+			const { onInView } = _opts;
+			if (onInView) {
 				_opts.loadHandler = function () {
-					loadHandler(ctrl);
+					onInView(ctrl);
 				};
 			}
 			else {
