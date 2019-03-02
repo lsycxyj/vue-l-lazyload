@@ -1,8 +1,11 @@
 # vue-l-lazyload
 
-> A lazyload plugin for Vue.js v2.x+.
+> A lazyload and in-view detection plugin for Vue.js v2.x+.
 
 ### Pull requests are welcome :)
+
+![Build Status](https://travis-ci.org/lsycxyj/vue-l-lazyload.svg?branch=master)
+[![Coverage](https://img.shields.io/codecov/c/github/lsycxyj/vue-l-lazyload/master.svg)](https://codecov.io/github/lsycxyj/vue-l-lazyload?branch=master)
 
 ## License
 LGPL-V3  
@@ -45,10 +48,9 @@ Vue.use(VueLLazyload, config);
 </lazy-ref>
 ```
 
-## Constants
-
 
 ## Config
+
 ### Notes about Config
 Note that **ALL ANCESTORS' CONFIGS WILL BE INHERITED** level by level.
 So be careful there may be conflict problems if you use too many ancestors' configs!
@@ -105,13 +107,6 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             </td>
         </tr>
         <tr>
-            <td>filters</td>
-            <td>Array&lt;Function&gt;</td>
-            <td>-</td>
-            <td>
-            </td>
-        </tr>
-        <tr>
             <td>throttleMethod</td>
             <td>String</td>
             <td>debounce</td>
@@ -121,7 +116,7 @@ So be careful there may be conflict problems if you use too many ancestors' conf
         </tr>
         <tr>
             <td>throttleTime</td>
-            <td>Interger</td>
+            <td>Integer</td>
             <td>250</td>
             <td>
                 Throttling time in ms.
@@ -138,11 +133,14 @@ So be careful there may be conflict problems if you use too many ancestors' conf
         </tr>
     </tobdy>
 </table>    
-[1]: All options will inherit its ancestors' options except for [2].
-[2]: These options won't be inherited.
 
-## Methods
-### $lazy (Instance of LazyLoader, available for LazyRef and InViewComp)
+[1]: All options will inherit its ancestors' options. <br>
+
+## LazyLoader
+
+$lazy is Instance of LazyLoader, available for LazyRef and InViewComp.
+
+### Methods
 <table class="table table-bordered table-striped">
     <thead>
         <tr>
@@ -174,7 +172,7 @@ So be careful there may be conflict problems if you use too many ancestors' conf
         <tr>
             <td>String or Object</td>
             <td>
-                If the value is an Object, it has the same spec as config with extra config.
+                If the value is an Object, it has the same spec as <a href="#config">config</a> with extra config.
                 If the value is a String, it will be used as `src` of config
             </td>
         </tr>
@@ -205,10 +203,30 @@ So be careful there may be conflict problems if you use too many ancestors' conf
         <tr>
             <td>src<sup>[2]</sup></td>
             <td>String</td>
-            <td>''</td>
+            <td>-</td>
             <td>
                 The resource url going to be loaded. <br>
                 Only available for Lazy.
+            </td>
+        </tr>
+        <tr>
+            <td>filters</td>
+            <td>Array&lt;Function&gt;</td>
+            <td>-</td>
+            <td>
+                Filter the src you one by one before the element requests it. <br>
+                Each filter is a function and should return the filtered url. The signiture of it should be like this: 
+<pre>
+function: String (
+    // Last filtered result. It will be the original src if it's the first filter.
+    lastResult,
+    // Other infomation
+    info: {
+        // The element to which the loader attaches
+        el,
+    },
+) {}
+</pre>
             </td>
         </tr>
         <tr>
@@ -217,6 +235,55 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>0</td>
             <td>
                 If it's a number, it will be the retry amount, 0 for no retry, -1 for infinite retry. <br>
+                If it's a function, it will be used to control the flow of retry. <br>
+                It will pass a object parameter which has following properties:
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>el</td>
+                            <td>HtmlElement</td>
+                            <td>The element which the loader is bound to.</td>
+                        </tr>
+                        <tr>
+                            <td>src</td>
+                            <td>String</td>
+                            <td>The last src which is loaded.</td>
+                        </tr>
+                        <tr>
+                            <td>oSrc</td>
+                            <td>String</td>
+                            <td>The original src you want to load.</td>
+                        </tr>
+                        <tr>
+                            <td>times</td>
+                            <td>Integer</td>
+                            <td>N-th times retry. Begins from 0.</td>
+                        </tr>
+                        <tr>
+                            <td>next</td>
+                            <td>Function</td>
+                            <td>
+                                Call this function and pass an parameter object to it to control the retry. <br>
+                                If you want to retry with the new url, you should pass it as `src` property. <br>
+                                If you want to stop the retry, you should pass `true` as `failed` property. <br>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>applyFilters</td>
+                            <td>Function</td>
+                            <td>
+                                A shortcut function to apply all filters you passed as the option. Put the url into it and you will get the filtered one.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
         </tr>
         <tr>
@@ -286,6 +353,34 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>Function</td>
             <td>-</td>
             <td>
+                It will be called when the src is loaded successfully (after retry if it did retry).<br>
+                It will pass a object parameter which has following properties:
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>el</td>
+                            <td>HtmlElement</td>
+                            <td>The element which the loader is bound to.</td>
+                        </tr>
+                        <tr>
+                            <td>src</td>
+                            <td>String</td>
+                            <td>The last src which is loaded.</td>
+                        </tr>
+                        <tr>
+                            <td>oSrc</td>
+                            <td>String</td>
+                            <td>The original src you want to load.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
         </tr>
         <tr>
@@ -293,6 +388,39 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>Function</td>
             <td>-</td>
             <td>
+                It will be called when the src fails to load each time. <br>
+                It will pass a object parameter which has following properties:
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>el</td>
+                            <td>HtmlElement</td>
+                            <td>The element which the loader is bound to.</td>
+                        </tr>
+                        <tr>
+                            <td>src</td>
+                            <td>String</td>
+                            <td>The last src which is loaded.</td>
+                        </tr>
+                        <tr>
+                            <td>oSrc</td>
+                            <td>String</td>
+                            <td>The original src you want to load.</td>
+                        </tr>
+                        <tr>
+                            <td>isEnd</td>
+                            <td>Boolean</td>
+                            <td>Optional. It will be true when it's the failure of the last loading (after all retries if it did retry).</td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
         </tr>
         <tr>
@@ -300,13 +428,43 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>Function</td>
             <td>-</td>
             <td>
+                It will be called when the load request begins to be sent each time. <br>
+                It will pass a object parameter which has following properties:
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>el</td>
+                            <td>HtmlElement</td>
+                            <td>The element which the loader is bound to.</td>
+                        </tr>
+                        <tr>
+                            <td>src</td>
+                            <td>String</td>
+                            <td>The last src which is loaded.</td>
+                        </tr>
+                        <tr>
+                            <td>oSrc</td>
+                            <td>String</td>
+                            <td>The original src you want to load.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
         </tr>
     </tbody>
 </table>
-[1]: All options should not be changed after they have initialized except for [2].
-[2]: It will mark the node not loaded and load again when it's in parent view. if `once` is set to `false`.
+
+[1]: All options should not be changed after they have initialized except for [2].<br>
+[2]: It will mark the node not loaded and load again when it's in parent view. if `once` is set to `false`.<br>
 [3]: All options will inherit its ancestors' options.
+
 
 ## Components
 ### LazyRef(lazy-ref, Experimental)
@@ -352,12 +510,109 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>Function</td>
             <td>-</td>
             <td>
+                It will be called when the element is in the viewport. <br>
+                It will pass wa object parameter which has following properties:
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>endCheck</td>
+                            <td>Function</td>
+                            <td>
+                                Call this function to stop checking whether the element is in viewport when you don't need onInView callback's firing anymore.
+                                This function will also be called if the stat is set to `COMP_LOADED`. 
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
         </tr>
     </tbody>
 </table>
 
+[1]: All options above won't inherit its ancestors' options by now.
+
 ### LazyComp
+#### Props
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Default Value</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>tag</td>
+            <td>String</td>
+            <td>div</td>
+            <td>The tag name of the wrapper component when it renders.</td>
+        </tr>
+        <tr>
+            <td>opts</td>
+            <td>Object</td>
+            <td>null</td>
+            <td>
+                It has the same spec as <a href="#config">config</a> with extra config.
+            </td>
+        </tr>
+        <tr>
+            <td>stat</td>
+            <td>Integer</td>
+            <td>COMP_NOT_LOAD</td>
+            <td>
+                The status of the component which controls the slot's display. <br>
+                Available constants for stat: 
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>COMP_NOT_LOAD</td>
+                            <td>The component is not loaded and the initial status of comopnent.</td>
+                        </tr>
+                        <tr>
+                            <td>COMP_LOADING</td>
+                            <td>The component is not loading.</td>
+                        </tr>
+                        <tr>
+                            <td>COMP_LOADED</td>
+                            <td>The component is not loaded.</td>
+                        </tr>
+                        <tr>
+                            <td>COMP_ERR</td>
+                            <td>The component failed to load.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <b>Notes:</b>
+                <ol>
+                    <li>Please <b>USE THE CONSTANT VARIABLE</b> instead of the actual value!</li>
+                    <li>
+                        The initial stat MUST be `COMP_NOT_LOAD` and the stat SHOULD NOT be changed 
+                        until this component is mounted for LazyLoader's initialization.
+                    </li>
+                    <li>
+                        To ensure you change the status after the initialization, you should change the props "stat" in the "onInView" callback.
+                    </li>
+                </ol>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
 #### Extra config for `opts` LazyComp
 <table class="table table-bordered table-striped">
     <thead>
@@ -418,10 +673,62 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>Function</td>
             <td>-</td>
             <td>
+                It will be called when the element is in the viewport. <br>
+                It will pass wa object parameter which has following properties:
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>endCheck</td>
+                            <td>Function</td>
+                            <td>
+                                Call this function to stop checking whether the element is in viewport when you don't need onInView callback's firing anymore.
+                                This function will also be called if the stat is set to `COMP_LOADED`. 
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </td>
         </tr>
     </tbody>
 </table>
+
+[1]: All options above won't inherit its ancestors' options by now.
+
+#### Slots
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>not-load</td>
+            <td>It will be shown if the prop `stat` is set to `COMP_NOT_LOAD`.</td>
+        </tr>
+        <tr>
+            <td>loading</td>
+            <td>It will be shown if the prop `stat` is set to `COMP_LOADING`.</td>
+        </tr>
+        <tr>
+            <td>err</td>
+            <td>It will be shown if the prop `stat` is set to `COMP_ERR`.</td>
+        </tr>
+        <tr>
+            <td>(default)</td>
+            <td>It will be shown if the prop `stat` is set to `COMP_LOADED`.</td>
+        </tr>
+    </tobdy>
+</table>
+
 
 ## Well, what's next?
 - More abilities
