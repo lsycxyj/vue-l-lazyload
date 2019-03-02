@@ -522,6 +522,11 @@ function: String (
                     </thead>
                     <tbody>
                         <tr>
+                            <td>$lazy</td>
+                            <td>LazyLoader</td>
+                            <td>The LazyLoader.</td>
+                        </tr>
+                        <tr>
                             <td>endCheck</td>
                             <td>Function</td>
                             <td>
@@ -684,6 +689,11 @@ function: String (
                         </tr>
                     </thead>
                     <tbody>
+                        <tr>
+                            <td>$lazy</td>
+                            <td>LazyLoader</td>
+                            <td>The LazyLoader.</td>
+                        </tr>
                         <tr>
                             <td>endCheck</td>
                             <td>Function</td>
