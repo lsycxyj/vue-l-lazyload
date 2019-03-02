@@ -20,7 +20,11 @@ LGPL-V3
 - Progressive configuration
 - Flexible events to trigger loading
 - Lazyload as src attribute and background image are supported
+- Customized retry control
+- Filters for substitution of url by rules
 - Performance boost by event delegation and passive event listener when it's available
+- LazyComp for lazy loading child component.
+- InViewComp for in-view detection
 
 ## Installation
 
