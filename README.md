@@ -3,7 +3,7 @@
 > A lazyload and in-view detection plugin for Vue.js v2.x+.
 
 ### Demo
-[Live demo](https://cdn.rawgit.com/lsycxyj/vue-l-lazyload/master/demo/index.html) or `npm install vue-l-lazyload && npm run startDev` to play it!
+[Live demo](https://rawcdn.githack.com/lsycxyj/vue-l-lazyload/1558559ece69742dc1cf03f972011e62d74cc10d/demo/index.html) or `npm install vue-l-lazyload && npm run startDev` to play it!
 
 ### Pull requests are welcome :)
 
