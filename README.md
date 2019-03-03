@@ -36,6 +36,8 @@ LGPL-V3
 ### A simple way:
 ```javascript
 import { VueLLazyload } from 'vue-l-lazyload';
+// For smaller production code with tree shaking, I recommend you to import the src instead:
+// import { VueLLazyload } from 'vue-l-lazyload/src';
 Vue.use(VueLLazyload, {
 	events: 'scroll'
 });
