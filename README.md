@@ -11,7 +11,7 @@
 [![Coverage](https://img.shields.io/codecov/c/github/lsycxyj/vue-l-lazyload/master.svg)](https://codecov.io/github/lsycxyj/vue-l-lazyload?branch=master)
 
 ## License
-LGPL-V3  
+LGPL-V3
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](http://www.gnu.org/licenses/lgpl-3.0)
 
 ## Features
@@ -37,7 +37,7 @@ LGPL-V3
 ```javascript
 import { VueLLazyload } from 'vue-l-lazyload';
 // For smaller production code with tree shaking, I recommend you to import the src instead:
-// import { VueLLazyload } from 'vue-l-lazyload/src';
+// import { VueLLazyloadLocal: VueLLazyload } from 'vue-l-lazyload/src';
 Vue.use(VueLLazyload, {
 	events: 'scroll'
 });
@@ -57,6 +57,12 @@ Vue.use(VueLLazyload, config);
 </lazy-ref>
 ```
 
+## Vue Plugins
+### VueLLazyload
+Vue Plugin with global option of registering directive "lazy" and component "lazy-ref".
+
+### VueLLazyloadLocal
+Vue Plugin without global option of registering directives or components for local usage purpose and smaller footprint.
 
 ## Config
 
@@ -136,12 +142,12 @@ So be careful there may be conflict problems if you use too many ancestors' conf
             <td>Boolean</td>
             <td>true</td>
             <td>
-                Whether to register the directive "lazy" and components "lazy-ref" globally or not.<br>
-                Only available for global config.
+                Whether to register the directive "lazy" and component "lazy-ref" globally or not.<br>
+                Only available for global config of "VueLLazyload".
             </td>
         </tr>
     </tobdy>
-</table>    
+</table>
 
 [1]: All options will inherit its ancestors' options. <br>
 
@@ -224,7 +230,7 @@ $lazy is Instance of LazyLoader, available for LazyRef and InViewComp.
             <td>-</td>
             <td>
                 Filter the src you one by one before the element requests it. <br>
-                Each filter is a function and should return the filtered url. The signiture of it should be like this: 
+                Each filter is a function and should return the filtered url. The signiture of it should be like this:
 <pre>
 function: String (
     // Last filtered result. It will be the original src if it's the first filter.
@@ -540,7 +546,7 @@ function: String (
                             <td>Function</td>
                             <td>
                                 Call this function to stop checking whether the element is in viewport when you don't need onInView callback's firing anymore.
-                                This function will also be called if the stat is set to `COMP_LOADED`. 
+                                This function will also be called if the stat is set to `COMP_LOADED`.
                             </td>
                         </tr>
                     </tbody>
@@ -584,7 +590,7 @@ function: String (
             <td>COMP_NOT_LOAD</td>
             <td>
                 The status of the component which controls the slot's display. <br>
-                Available constants for stat: 
+                Available constants for stat:
                 <table>
                     <thead>
                         <tr>
@@ -615,7 +621,7 @@ function: String (
                 <ol>
                     <li>Please <b>USE THE CONSTANT VARIABLE</b> instead of the actual value!</li>
                     <li>
-                        The initial stat MUST be `COMP_NOT_LOAD` and the stat SHOULD NOT be changed 
+                        The initial stat MUST be `COMP_NOT_LOAD` and the stat SHOULD NOT be changed
                         until this component is mounted for LazyLoader's initialization.
                     </li>
                     <li>
@@ -708,7 +714,7 @@ function: String (
                             <td>Function</td>
                             <td>
                                 Call this function to stop checking whether the element is in viewport when you don't need onInView callback's firing anymore.
-                                This function will also be called if the stat is set to `COMP_LOADED`. 
+                                This function will also be called if the stat is set to `COMP_LOADED`.
                             </td>
                         </tr>
                     </tbody>

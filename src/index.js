@@ -162,6 +162,7 @@ export const Lazy = {
 export const InViewComp = _InViewComp;
 export const LazyComp = _LazyComp;
 
+// Vue plugin entry point
 export const VueLLazyload = {
 	install(Vue, options) {
 		const allOpts = {
@@ -182,5 +183,18 @@ export const VueLLazyload = {
 
 			Vue.component('lazy-ref', LazyRef);
 		}
+	},
+};
+
+// Vue plugin entry point of local components for tree shaking
+export const VueLLazyloadLocal = {
+	install(Vue, options) {
+		LazyLoader = LazyClass(Vue);
+		// Set root lazy loader
+		// eslint-disable-next-line no-new
+		new LazyLoader({
+			...options,
+			isRoot: true,
+		});
 	},
 };

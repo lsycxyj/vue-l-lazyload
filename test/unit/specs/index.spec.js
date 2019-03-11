@@ -8,6 +8,7 @@ import BlueBird from 'bluebird';
 import {
 	__RewireAPI__ as IndexRewireAPI,
 	VueLLazyload,
+	VueLLazyloadLocal,
 	getLazyLoader,
 	Lazy,
 	LazyRef,
@@ -65,6 +66,7 @@ function makeStubVue() {
 	return {
 		directive: sinon.spy(noop),
 		component: sinon.spy(noop),
+		use: sinon.spy(noop),
 	};
 }
 
@@ -126,20 +128,71 @@ describe('index', () => {
 			expect(argsDirective).to.eql(['lazy', Lazy]);
 			expect(argsComponent).to.eql(['lazy-ref', LazyRef]);
 		});
-	});
 
-	describe('getLazyLoader', () => {
-		afterEach(() => {
-			resetInstall();
-		});
-
-		it('LazyLoader class can be retrieved after install', () => {
+		it('getLazyLoader: LazyLoader class can be retrieved after install', () => {
 			const stubVue = stubStubVue();
 			VueLLazyload.install(stubVue);
 
 			const _LazyLoader = getLazyLoader();
 			assert.isFunction(_LazyLoader);
 			expect(_LazyLoader).to.be.equal(IndexRewireAPI.__get__('LazyLoader'));
+		});
+
+		it('Root Lazy should be properly installed', () => {
+			let StubLazyLoader = null;
+			const OLazyClass = LazyClass;
+			const StubLazyClass = sinon.spy(() => {
+				StubLazyLoader = sinon.spy(() => {});
+				return StubLazyLoader;
+			});
+			IndexRewireAPI.__set__('LazyClass', StubLazyClass);
+
+			const stubVue = makeStubVue();
+			const options = { whatever: 'whatever' };
+			VueLLazyload.install(stubVue, options);
+			expect(StubLazyClass.getCall(0).args[0]).to.be.equal(stubVue);
+			expect(StubLazyLoader.getCall(0).args[0]).to.include({
+				...options,
+				isRoot: true,
+			});
+
+			IndexRewireAPI.__set__('LazyClass', OLazyClass);
+		});
+	});
+
+	describe('VueLLazyloadLocal', () => {
+		afterEach(() => {
+			resetInstall();
+		});
+
+		it('getLazyLoader: LazyLoader class can be retrieved after install', () => {
+			const stubVue = stubStubVue();
+			VueLLazyloadLocal.install(stubVue);
+
+			const _LazyLoader = getLazyLoader();
+			assert.isFunction(_LazyLoader);
+			expect(_LazyLoader).to.be.equal(IndexRewireAPI.__get__('LazyLoader'));
+		});
+
+		it('Root Lazy should be properly installed', () => {
+			let StubLazyLoader = null;
+			const OLazyClass = LazyClass;
+			const StubLazyClass = sinon.spy(() => {
+				StubLazyLoader = sinon.spy(() => {});
+				return StubLazyLoader;
+			});
+			IndexRewireAPI.__set__('LazyClass', StubLazyClass);
+
+			const stubVue = makeStubVue();
+			const options = { whatever: 'whatever' };
+			VueLLazyloadLocal.install(stubVue, options);
+			expect(StubLazyClass.getCall(0).args[0]).to.be.equal(stubVue);
+			expect(StubLazyLoader.getCall(0).args[0]).to.include({
+				...options,
+				isRoot: true,
+			});
+
+			IndexRewireAPI.__set__('LazyClass', OLazyClass);
 		});
 	});
 
@@ -973,6 +1026,65 @@ describe('index', () => {
 			expect($slotNotLoad.length).to.be.equal(0);
 			expect($slotLoaded.length).to.be.equal(1);
 			expect($slotLoaded.siblings().length).to.be.equal(0);
+		});
+
+		it('Scoped slot', () => {
+			const ScopedSlotList = {
+				template: `
+				 	<ol>
+						<li v-for="(item, index) in list"
+							:key="index + ''"
+						>
+							<slot name="listItem" :item="item">
+								<span class="list-item">{{item.name}}</span>
+							</slot>
+						</li>
+					</ol>
+				`,
+				data() {
+					return {
+						list: [
+							{
+								name: 'Item1',
+							},
+							{
+								name: 'Item2',
+							},
+						],
+					};
+				},
+			};
+			const TestComp = {
+				template: `
+					<div>
+						<lazy-comp :stat="stat">
+							<div id="slotNotLoad" slot="not-load">
+								<scoped-slot-list>
+									<slot name="listItem">
+									</slot>
+								</scoped-slot-list>
+							</div>
+						</lazy-comp>
+					</div>
+				`,
+				mixins: [LAZY_COMP_STAT_MIXIN],
+				components: {
+					LazyComp,
+					ScopedSlotList,
+				},
+				data() {
+					return {
+						stat: STAT_NOT_LOAD,
+					};
+				},
+			};
+
+			const wrapper = mount(TestComp);
+			const { element } = wrapper;
+			const $wrapper = $(element);
+			const $slotNotLoad = $wrapper.find('#slotNotLoad');
+			expect($slotNotLoad.length).to.be.equal(1);
+			expect($wrapper.find('.list-item').length).to.be.equal(2);
 		});
 
 		it('All slots with grandchildren slots and bug regression test of lost of event listeners when exposing methods to change data inside the child component', () => {
